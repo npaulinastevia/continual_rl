@@ -84,13 +84,12 @@ class ConfigurationLoader(object):
     def _write_json_log_file(cls, experiment_json, output_path, meta_data):
         experiment_json = copy.deepcopy(experiment_json)
         experiment_json["continual_rl_commit"] = str(cls._get_script_dir_commit_hash())
-        experiment_json["timestamp"] = str(datetime.datetime.utcnow())
-
+        import time
+        experiment_json["timestamp"] = int(time.time())
         if meta_data is not None:
             experiment_json["meta_data"] = str(meta_data)
 
         output_file_path = os.path.join(output_path, f"experiment_{experiment_json['timestamp']}.json")
-
         with open(output_file_path, "w") as output_file:
             output_file.write(json.dumps(experiment_json))
 
@@ -154,7 +153,10 @@ class ConfigurationLoader(object):
             # Colons are disallowed in Windows, so format as 'Jul_14_2020_06.27.22.741813'
             # (Month day year hour min sec.microsec)
             timestamp = datetime.datetime.now().strftime("%b_%d_%Y_%H.%M.%S.%f")
-            output_name = f"{experiment['policy']}_{experiment['experiment']}_{timestamp}"
+            import time
+
+            output_name = f"{experiment['policy']}_{experiment['experiment']}_{int(time.time())}"
+
             experiment_output_dir = os.path.join(experiment_base_directory, output_name)
         else:
             # Load up the first experiment we haven't yet started
@@ -195,6 +197,7 @@ class ConfigurationLoader(object):
             # log some metadata information into an "experiments.json" file in the output directory
             # Create it before initializing the experiment and policy so they're available during initialization
             os.makedirs(experiment_output_dir, exist_ok=True)  # May exist if we're resuming
+
             self._write_json_log_file(experiment_json_clone, experiment_output_dir, meta_data)
 
             experiment, policy = self._get_policy_and_experiment_from_raw_config(

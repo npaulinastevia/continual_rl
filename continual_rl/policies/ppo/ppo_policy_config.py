@@ -1,3 +1,5 @@
+import torch
+
 from continual_rl.policies.config_base import ConfigBase
 
 
@@ -23,7 +25,10 @@ class PPOPolicyConfig(ConfigBase):
         self.recurrent_policy = False
         self.use_linear_lr_decay = False
         self.decay_over_steps = 10000000  # The policy shouldn't need to know how long to run, but ... for lr decay...
-        self.cuda = True
+        if torch.cuda.is_available():
+            self.cuda = True
+        else:
+            self.cuda = False
         self.render_collection_freq = 200000  # timesteps
         self.comment = ""  # For experiment-writers to leave a comment for themselves, not used in PPO
         self.clip_reward = True
