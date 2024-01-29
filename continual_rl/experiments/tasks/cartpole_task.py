@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import gym_minigrid  # Needed for Utils.make_env
+#import gym_minigrid  # Needed for Utils.make_env
 import gym
 from continual_rl.experiments.tasks.task_base import TaskBase
 from continual_rl.experiments.tasks.preprocessor_base import PreprocessorBase
@@ -22,7 +22,7 @@ class CartPolePreprocessor(PreprocessorBase):
     def preprocess(self, batched_obs):
         #assert isinstance(batched_obs[0], LazyFrames), f"Observation was of unexpected type: {type(batched_obs[0])}"
         # Minigrid images are [H, W, C], so rearrange to pytorch's expectations.
-        return torch.stack([obs.to_tensor() for obs in batched_obs])
+        return torch.stack([torch.from_numpy(obs) for obs in batched_obs])
 
     def render_episode(self, episode_observations):
         """

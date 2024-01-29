@@ -30,7 +30,10 @@ class PPOPolicy(PolicyBase):
         # Original observation_space is [time, channels, width, height]
         # Compact it into [time * channels, width, height]
         observation_size = observation_space.shape
-        compressed_observation_size = [observation_size[0] * observation_size[1], observation_size[2], observation_size[3]]
+        if len(observation_size)==1:
+            compressed_observation_size=observation_size
+        else:
+            compressed_observation_size = [observation_size[0] * observation_size[1], observation_size[2], observation_size[3]]
         self._config = config
         self._device = torch.device("cuda:0" if self._config.cuda else "cpu")
 
@@ -101,7 +104,8 @@ class PPOPolicy(PolicyBase):
         action_space = self._action_spaces[action_space_id]
 
         # The observation now includes the batch
-        observation = observation.view((observation.shape[0], -1, observation.shape[3], observation.shape[4]))
+        if len(observation.shape)>2:
+            observation = observation.view((observation.shape[0], -1, observation.shape[3], observation.shape[4]))
 
         # Insert the previous step's data, now that it has been populated with reward and done
         if last_timestep_data is not None:

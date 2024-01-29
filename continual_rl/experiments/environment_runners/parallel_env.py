@@ -41,7 +41,10 @@ def worker(conn, env_spec, output_dir):
     while True:
         cmd, data = conn.recv()
         if cmd == "step":
-            obs, reward, done, info = env.step(data)
+            if len(env.observation_space.shape)==1:
+                obs, reward, done, info = env.step(data.item())
+            else:
+                obs, reward, done, info = env.step(data)
             if done:
                 obs = env.reset()
             conn.send((obs, reward, done, info))
@@ -96,7 +99,10 @@ class ParallelEnv(gym.Env):
     def step(self, actions):
         for local, action in zip(self.locals, actions[1:]):
             local.send(("step", action))
-        obs, reward, done, info = self._local_env.step(actions[0])
+        if len(self.observation_space.shape)==1:
+            obs, reward, done, info = self._local_env.step(actions[0].item())
+        else:
+            obs, reward, done, info = self._local_env.step(actions[0])
         if done:
             obs = self._local_env.reset()
         results = zip(*[(obs, reward, done, info)] + [local.recv() for local in self.locals])
