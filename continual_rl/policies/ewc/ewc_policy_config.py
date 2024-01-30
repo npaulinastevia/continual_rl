@@ -1,3 +1,4 @@
+import config_
 from continual_rl.policies.impala.impala_policy_config import ImpalaPolicyConfig
 
 
@@ -16,7 +17,7 @@ class EWCPolicyConfig(ImpalaPolicyConfig):
         self.discounting = 0.99
 
         self.replay_buffer_frames = int(1e6)  # save a buffer per task for computing Fisher estimates
-        self.large_file_path = None  # No default, since it can be very large and we want no surprises
+        self.large_file_path = config_.task_name+'_'+config_.env_name  # No default, since it can be very large and we want no surprises
 
         self.n_fisher_samples = 100  # num of batches to draw to recompute the diagonal of the Fisher
 

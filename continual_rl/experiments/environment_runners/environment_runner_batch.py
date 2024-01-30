@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from collections import deque
+
+import config_
 from continual_rl.experiments.environment_runners.parallel_env import ParallelEnv
 from continual_rl.experiments.environment_runners.environment_runner_base import EnvironmentRunnerBase
 import copy
@@ -14,7 +16,7 @@ class EnvironmentRunnerBatch(EnvironmentRunnerBase):
     The arguments provided to collect_data are from the task.
     """
     def __init__(self, policy, num_parallel_envs, timesteps_per_collection, render_collection_freq=None,
-                 output_dir=None):
+                 output_dir=None,start=None):
         super().__init__()
         self._policy = policy
         self._num_parallel_envs = num_parallel_envs
@@ -31,6 +33,8 @@ class EnvironmentRunnerBatch(EnvironmentRunnerBase):
         self._observations_to_render = []
         self._timesteps_since_last_render = 0
         self._total_timesteps = 0
+        self.start=start
+        self.epi=0
 
     def _preprocess_raw_observations(self, preprocessor, raw_observations):
         return preprocessor.preprocess(raw_observations)
@@ -120,7 +124,18 @@ class EnvironmentRunnerBatch(EnvironmentRunnerBase):
             # ParallelEnv automatically resets the env and returns the new observation when a "done" occurs
             result = self._parallel_env.step(actions)
             raw_observations, rewards, dones, infos = list(result)
+            import time
+            ts=time.time() - self.start
+            f = open('results_cart_trainCRL_' + config_.env_name + '.txt', 'a+')
 
+            for o, (obs,reward,dd) in enumerate(zip(raw_observations,rewards,dones)):
+                if dd:
+                    self.epi=self.epi+1
+                f.write(
+                    str(env_spec) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
+                        self._total_timesteps) + ',' + str(ts) + ',' + str(
+                        self.epi)+','+str(o)+ ','+str(task_id)+ ','+str(dd)+'\n')
+            f.close()
 
 
             self._total_timesteps += self._num_parallel_envs

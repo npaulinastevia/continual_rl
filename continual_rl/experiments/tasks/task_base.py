@@ -41,6 +41,8 @@ class TaskBase(ABC):
         # We keep running mean of rewards so the average is less dependent on how many episodes completed
         # in the last update
         self._rolling_return_count = rolling_return_count
+        import time
+        self.start=time.time()
 
         # The set of task parameters that the environment runner gets access to.
         self._task_spec = TaskSpec(self.task_id, action_space_id, preprocessor, env_spec, num_timesteps, eval_mode,

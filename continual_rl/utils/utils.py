@@ -53,10 +53,10 @@ class Utils(object):
         import time
         id_txt = str(int(time.time()))
         f = open('results_cart_trainCRL_' + env_spec + '.txt', 'a+')
-        f.write('Environments,Algorithms,x1,reward,steps,time,episodes' + '\n')
+        f.write('Environments,Algorithms,x1,reward,steps,time,episodes,task_id,done' + '\n')
         f.close()
         f = open('results_cart_testCRL_' + env_spec + '.txt', 'a+')
-        f.write('Environments,Algorithms,x1,reward,steps,time,episodes' + '\n')
+        f.write('Environments,Algorithms,x1,reward,steps,time,episodes,env_id,task_id,done' + '\n')
         f.close()
         while env is None:
             try:

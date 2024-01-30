@@ -96,7 +96,7 @@ class CartPoleEnv(gym.Env):
 
         self.steps_beyond_done = None
         self.eval=None
-        self.env_name='cartpole_v0'
+        self.env_name='CartPole-v0'
         self.steps=0
         self.epi=0
 

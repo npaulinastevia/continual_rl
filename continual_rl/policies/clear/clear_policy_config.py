@@ -1,3 +1,4 @@
+import config_
 from continual_rl.policies.impala.impala_policy_config import ImpalaPolicyConfig
 
 
@@ -18,12 +19,12 @@ class ClearPolicyConfig(ImpalaPolicyConfig):
 
         self.policy_cloning_cost = 0.01
         self.value_cloning_cost = 0.005
-        self.large_file_path = None  # No default, since it can be very large and we want no surprises
+        self.large_file_path = config_.task_name+'_'+config_.env_name  # No default, since it can be very large and we want no surprises
         self.policy_unique_id = ""
 
         # if getting "too many open files", then try switching to "file_system"
         # see https://github.com/pytorch/pytorch/issues/11201
-        self.torch_multiprocessing_sharing_strategy = "file_descriptor"
+        self.torch_multiprocessing_sharing_strategy = "file_system"
 
     def _load_from_dict_internal(self, config_dict):
         config = super()._load_from_dict_internal(config_dict)

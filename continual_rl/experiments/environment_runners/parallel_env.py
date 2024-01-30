@@ -46,12 +46,7 @@ def worker(conn, env_spec, output_dir,start):
             else:
                 obs, reward, done, info = env.step(data)
             import time
-            f = open('results_cart_trainCRL_' + env.env_name + '.txt', 'a+')
-            f.write(
-                str(env.env_name) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
-                    env.steps) + ',' + str(time.time() - start) + ',' + str(
-                    env.epi) + '\n')
-            f.close()
+
             if done:
                 obs = env.reset()
             conn.send((obs, reward, done, info))
@@ -78,6 +73,7 @@ class ParallelEnv(gym.Env):
         self._local_env, seed = Utils.make_env(self._env_specs[0], create_seed=True)
         self.observation_space = self._local_env.observation_space
         self.action_space = self._local_env.action_space
+        self.epi=0
         import time
         self.start=time.time()
         if output_dir is not None:
@@ -102,6 +98,7 @@ class ParallelEnv(gym.Env):
         for local in self.locals:
             local.send(("reset", None))
         results = [self._local_env.reset()] + [local.recv() for local in self.locals]
+        self.epi=self.epi+1
         return results
 
     def step(self, actions):
@@ -112,10 +109,10 @@ class ParallelEnv(gym.Env):
         else:
             obs, reward, done, info = self._local_env.step(actions[0])
         import time
-        f = open('results_cart_trainCRL_' + self._local_env.env_name + '.txt', 'a+')
-        f.write(str(self._local_env.env_name) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
-            self._local_env.steps) + ',' + str(time.time() - self.start) + ',' + str(self._local_env.epi) + '\n')
-        f.close()
+        #f = open('results_cart_trainCRL_' + self._local_env.env_name + '.txt', 'a+')
+        #f.write(str(self._local_env.env_name) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
+        #    self._local_env.steps) + ',' + str(time.time() - self.start) + ',' + str(self._local_env.epi) + '\n')
+        #f.close()
         if done:
             obs = self._local_env.reset()
         results = zip(*[(obs, reward, done, info)] + [local.recv() for local in self.locals])

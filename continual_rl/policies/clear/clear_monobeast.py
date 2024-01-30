@@ -17,7 +17,6 @@ class ClearMonobeast(Monobeast):
     def __init__(self, model_flags, observation_space, action_spaces, policy_class):
         super().__init__(model_flags, observation_space, action_spaces, policy_class)
         common_action_space = Utils.get_max_discrete_action_space(action_spaces)
-
         torch.multiprocessing.set_sharing_strategy(model_flags.torch_multiprocessing_sharing_strategy)
 
         # LSTMs not supported largely because they have not been validated; nothing extra is stored for them.

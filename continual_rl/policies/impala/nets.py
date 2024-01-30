@@ -26,15 +26,21 @@ class ImpalaNet(nn.Module):
 
         if conv_net is None:
             # The conv net gets channels and time merged together (mimicking the original FrameStacking)
-            combined_observation_size = [observation_space.shape[0] * observation_space.shape[1],
-                                         observation_space.shape[2],
-                                         observation_space.shape[3]]
-            self._conv_net = get_network_for_size(combined_observation_size, arch=conv_net_arch)
+            if len(observation_space.shape) == 1:
+                combined_observation_size = observation_space.shape
+            else:
+                combined_observation_size = [observation_space.shape[0] * observation_space.shape[1],
+                                             observation_space.shape[2],
+                                             observation_space.shape[3]]
+                self._conv_net = get_network_for_size(combined_observation_size, arch=conv_net_arch)
         else:
             self._conv_net = conv_net
 
         # FC output size + one-hot of last action + last reward.
-        core_output_size = self._conv_net.output_size + self.num_actions + 1
+        if len(observation_space.shape) == 1:
+            core_output_size=observation_space.shape[0]
+        else:
+            core_output_size = self._conv_net.output_size + self.num_actions + 1
         self.policy = nn.Linear(core_output_size, self.num_actions)
 
         self._baseline_output_dim = 2 if model_flags.baseline_includes_uncertainty else 1
@@ -65,41 +71,71 @@ class ImpalaNet(nn.Module):
 
     def forward(self, inputs, action_space_id, core_state=()):
         x = inputs["frame"]  # [T, B, S, C, H, W]. T=timesteps in collection, S=stacked frames
-        T, B, *_ = x.shape
-        x = torch.flatten(x, 0, 1)  # Merge time and batch.
-        x = torch.flatten(x, 1, 2)  # Merge stacked frames and channels.
-        x = x.float() / self._observation_space.high.max()
-        x = self._conv_net(x)
-        x = F.relu(x)
+        if len(self._observation_space.shape)==1:
 
-        one_hot_last_action = F.one_hot(
-            inputs["last_action"].view(T * B), self.num_actions
-        ).float()
-        clipped_reward = torch.clamp(inputs["reward"], -1, 1).view(T * B, 1).float()
-        core_input = torch.cat([x, clipped_reward, one_hot_last_action], dim=-1)
+            one_hot_last_action = F.one_hot(
+                inputs["last_action"], self.num_actions
+            ).float()
+            clipped_reward =inputs["reward"].float()
 
-        if self.use_lstm:
-            core_input = core_input.view(T, B, -1)
-            core_output_list = []
-            notdone = (~inputs["done"]).float()
-            for input, nd in zip(core_input.unbind(), notdone.unbind()):
-                # Reset core state to zero whenever an episode ended.
-                # Make `done` broadcastable with (num_layers, B, hidden_size)
-                # states:
-                nd = nd.view(1, -1, 1)
-                core_state = tuple(nd * s for s in core_state)
-                output, core_state = self.core(input.unsqueeze(0), core_state)
-                core_output_list.append(output)
-            core_output = torch.flatten(torch.cat(core_output_list), 0, 1)
+            core_input = x.float()
+
+            if self.use_lstm:
+                #core_input = core_input.view(T, B, -1)
+                core_output_list = []
+                notdone = (~inputs["done"]).float()
+                for input, nd in zip(core_input.unbind(), notdone.unbind()):
+                    # Reset core state to zero whenever an episode ended.
+                    # Make `done` broadcastable with (num_layers, B, hidden_size)
+                    # states:
+                    nd = nd.view(1, -1, 1)
+                    core_state = tuple(nd * s for s in core_state)
+                    output, core_state = self.core(input.unsqueeze(0), core_state)
+                    core_output_list.append(output)
+                core_output = torch.flatten(torch.cat(core_output_list), 0, 1)
+            else:
+                core_output = core_input
+                core_state = tuple()
         else:
-            core_output = core_input
-            core_state = tuple()
+            T, B, *_ = x.shape
+            x = torch.flatten(x, 0, 1)  # Merge time and batch.
+            x = torch.flatten(x, 1, 2)  # Merge stacked frames and channels.
+            x = x.float() / self._observation_space.high.max()
+            x = self._conv_net(x)
+            x = F.relu(x)
+
+            one_hot_last_action = F.one_hot(
+                inputs["last_action"].view(T * B), self.num_actions
+            ).float()
+            clipped_reward = torch.clamp(inputs["reward"], -1, 1).view(T * B, 1).float()
+            core_input = torch.cat([x, clipped_reward, one_hot_last_action], dim=-1)
+
+            if self.use_lstm:
+                core_input = core_input.view(T, B, -1)
+                core_output_list = []
+                notdone = (~inputs["done"]).float()
+                for input, nd in zip(core_input.unbind(), notdone.unbind()):
+                    # Reset core state to zero whenever an episode ended.
+                    # Make `done` broadcastable with (num_layers, B, hidden_size)
+                    # states:
+                    nd = nd.view(1, -1, 1)
+                    core_state = tuple(nd * s for s in core_state)
+                    output, core_state = self.core(input.unsqueeze(0), core_state)
+                    core_output_list.append(output)
+                core_output = torch.flatten(torch.cat(core_output_list), 0, 1)
+            else:
+                core_output = core_input
+                core_state = tuple()
 
         policy_logits = self.policy(core_output)
         baseline = self.baseline(core_output)
 
         # Used to select the action appropriate for this task (might be from a reduced set)
         current_action_size = self._action_spaces[action_space_id].n
+
+        if len(self._observation_space.shape)==1:
+            if len(policy_logits.shape)==1:
+                policy_logits=torch.unsqueeze(policy_logits,0)
         policy_logits_subset = policy_logits[:, :current_action_size]
 
         if self.training:
@@ -107,15 +143,19 @@ class ImpalaNet(nn.Module):
         else:
             # Don't sample when testing.
             action = torch.argmax(policy_logits_subset, dim=1)
+        if len(self._observation_space.shape) >1:
+            policy_logits = policy_logits.view(T, B, self.num_actions)
+            baseline = baseline.view(T, B, self._baseline_output_dim)
+            action = action.view(T, B)
+            output_dict = dict(policy_logits=policy_logits, baseline=baseline[:, :, 0], action=action)
+            if self._model_flags.baseline_includes_uncertainty:
+                output_dict["uncertainty"] = baseline[:, :, 1]
+        else:
+            output_dict = dict(policy_logits=policy_logits, baseline=baseline, action=action)
 
-        policy_logits = policy_logits.view(T, B, self.num_actions)
-        baseline = baseline.view(T, B, self._baseline_output_dim)
-        action = action.view(T, B)
-
-        output_dict = dict(policy_logits=policy_logits, baseline=baseline[:, :, 0], action=action)
-
-        if self._model_flags.baseline_includes_uncertainty:
-            output_dict["uncertainty"] = baseline[:, :, 1]
+            if self._model_flags.baseline_includes_uncertainty:
+                print(baseline.shape)
+                output_dict["uncertainty"] = baseline[:, :, 1]
 
         return (
             output_dict,

@@ -3,7 +3,7 @@ import json
 from continual_rl.experiments.run_metadata import RunMetadata
 from continual_rl.utils.utils import Utils
 from continual_rl.utils.common_exceptions import OutputDirectoryNotSetException
-
+import config_
 
 class InvalidTaskAttributeException(Exception):
     def __init__(self, error_msg):
