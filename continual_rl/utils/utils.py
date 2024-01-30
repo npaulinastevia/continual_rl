@@ -7,7 +7,10 @@ import random
 import torch
 import os
 import tempfile
-
+from .cartpole_v0 import CartPoleEnv
+from .nscartpole_v0 import NSCartPoleV0
+from .nscartpole_v2 import NSCartPoleV2
+from .nscartpole_v1 import NSCartPoleV1
 
 class Utils(object):
 
@@ -47,13 +50,29 @@ class Utils(object):
         seed = None
         make_env_tries = 0
         env = None
-
+        import time
+        id_txt = str(int(time.time()))
+        f = open('results_cart_trainCRL_' + env_spec + '.txt', 'a+')
+        f.write('Environments,Algorithms,x1,reward,steps,time,episodes' + '\n')
+        f.close()
+        f = open('results_cart_testCRL_' + env_spec + '.txt', 'a+')
+        f.write('Environments,Algorithms,x1,reward,steps,time,episodes' + '\n')
+        f.close()
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):
                     env = env_spec()
                 else:
-                    env = gym.make(env_spec)
+                    if env_spec=='CartPole-v0':
+                        env=CartPoleEnv()
+                    elif env_spec=='NSCartPole-v0':
+                        env=NSCartPoleV0()
+                    elif env_spec=='NSCartPole-v1':
+                        env=NSCartPoleV1()
+                    elif env_spec=='NSCartPole-v2':
+                        env=NSCartPoleV2()
+                    else:
+                        env = gym.make(env_spec)
             except Exception as e:
                 make_env_tries += 1
                 if make_env_tries > max_tries:

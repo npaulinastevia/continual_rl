@@ -30,7 +30,7 @@ import cloudpickle
 from continual_rl.utils.utils import Utils
 
 
-def worker(conn, env_spec, output_dir):
+def worker(conn, env_spec, output_dir,start):
     env_spec = cloudpickle.loads(env_spec)
     env, seed = Utils.make_env(env_spec, create_seed=True)
 
@@ -45,6 +45,13 @@ def worker(conn, env_spec, output_dir):
                 obs, reward, done, info = env.step(data.item())
             else:
                 obs, reward, done, info = env.step(data)
+            import time
+            f = open('results_cart_trainCRL_' + env.env_name + '.txt', 'a+')
+            f.write(
+                str(env.env_name) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
+                    env.steps) + ',' + str(time.time() - start) + ',' + str(
+                    env.epi) + '\n')
+            f.close()
             if done:
                 obs = env.reset()
             conn.send((obs, reward, done, info))
@@ -57,7 +64,7 @@ def worker(conn, env_spec, output_dir):
         else:
             raise NotImplementedError
 
-
+import config_
 class ParallelEnv(gym.Env):
     """A concurrent execution of environments in multiple processes."""
 
@@ -71,7 +78,8 @@ class ParallelEnv(gym.Env):
         self._local_env, seed = Utils.make_env(self._env_specs[0], create_seed=True)
         self.observation_space = self._local_env.observation_space
         self.action_space = self._local_env.action_space
-
+        import time
+        self.start=time.time()
         if output_dir is not None:
             logger = Utils.create_logger(f"{output_dir}/env.log")
             logger.info(f"Created env with seed {seed}")
@@ -82,7 +90,7 @@ class ParallelEnv(gym.Env):
             self.locals.append(local)
 
             pickled_spec = cloudpickle.dumps(env_spec)
-            p = Process(target=worker, args=(remote, pickled_spec, output_dir))
+            p = Process(target=worker, args=(remote, pickled_spec, output_dir,self.start))
             p.daemon = True
             p.start()
             remote.close()
@@ -103,6 +111,11 @@ class ParallelEnv(gym.Env):
             obs, reward, done, info = self._local_env.step(actions[0].item())
         else:
             obs, reward, done, info = self._local_env.step(actions[0])
+        import time
+        f = open('results_cart_trainCRL_' + self._local_env.env_name + '.txt', 'a+')
+        f.write(str(self._local_env.env_name) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
+            self._local_env.steps) + ',' + str(time.time() - self.start) + ',' + str(self._local_env.epi) + '\n')
+        f.close()
         if done:
             obs = self._local_env.reset()
         results = zip(*[(obs, reward, done, info)] + [local.recv() for local in self.locals])

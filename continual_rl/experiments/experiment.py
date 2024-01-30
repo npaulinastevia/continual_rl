@@ -105,7 +105,7 @@ class Experiment(object):
             self._logger.info(f"Completed continual eval for task: {test_task_run_id}")
 
     def _run(self, policy, summary_writer):
-        # Load as necessary
+        # Load as necessar
         policy.load(self.output_dir)
         run_metadata = RunMetadata(self._output_dir)
         start_cycle_id = run_metadata.cycle_id

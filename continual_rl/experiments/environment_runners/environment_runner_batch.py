@@ -121,6 +121,8 @@ class EnvironmentRunnerBatch(EnvironmentRunnerBase):
             result = self._parallel_env.step(actions)
             raw_observations, rewards, dones, infos = list(result)
 
+
+
             self._total_timesteps += self._num_parallel_envs
             self._last_timestep_data = timestep_data
             processed_observations = self._preprocess_raw_observations(preprocessor, raw_observations)

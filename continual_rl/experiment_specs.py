@@ -147,6 +147,9 @@ def get_available_experiments():
 
         "adventure": create_atari_single_game_loader("AdventureNoFrameskip-v4"),
         "cartpole": create_atari_single_game_loader("CartPole-v0"),
+        "nscartpole-v0": create_atari_single_game_loader("NSCartPole-v0"),
+        "nscartpole-v1": create_atari_single_game_loader("NSCartPole-v1"),
+        "nscartpole-v2": create_atari_single_game_loader("NSCartPole-v2"),
         "air_raid": create_atari_single_game_loader("AirRaidNoFrameskip-v4"),
         "alien": create_atari_single_game_loader("AlienNoFrameskip-v4"),
         "amidar": create_atari_single_game_loader("AmidarNoFrameskip-v4"),

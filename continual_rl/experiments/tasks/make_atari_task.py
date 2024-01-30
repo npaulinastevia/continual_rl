@@ -1,5 +1,6 @@
 import gym
 
+import config_
 from continual_rl.utils.env_wrappers import (
     NoopResetEnv,
     MaxAndSkipEnv,
@@ -47,7 +48,7 @@ def get_single_atari_task(task_id, action_space_id, env_name, num_timesteps, max
     The atari max step default is 100k.
     """
     if 'CartPole' in env_name:
-        return CartPoleTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=False)
+        return CartPoleTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
     return ImageTask(
         task_id=task_id,
         action_space_id=action_space_id,
