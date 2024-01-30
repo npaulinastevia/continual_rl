@@ -136,6 +136,7 @@ class ImpalaNet(nn.Module):
         if len(self._observation_space.shape)==1:
             if len(policy_logits.shape)==1:
                 policy_logits=torch.unsqueeze(policy_logits,0)
+                baseline = torch.unsqueeze(baseline, 0)
         policy_logits_subset = policy_logits[:, :current_action_size]
 
         if self.training:
@@ -151,11 +152,11 @@ class ImpalaNet(nn.Module):
             if self._model_flags.baseline_includes_uncertainty:
                 output_dict["uncertainty"] = baseline[:, :, 1]
         else:
-            output_dict = dict(policy_logits=policy_logits, baseline=baseline, action=action)
+            output_dict = dict(policy_logits=policy_logits, baseline=baseline[:, 0], action=action)
 
             if self._model_flags.baseline_includes_uncertainty:
                 print(baseline.shape)
-                output_dict["uncertainty"] = baseline[:, :, 1]
+                output_dict["uncertainty"] = baseline[:, 1]
 
         return (
             output_dict,
