@@ -155,7 +155,7 @@ class ImpalaNet(nn.Module):
             output_dict = dict(policy_logits=policy_logits, baseline=baseline[:, 0], action=action)
 
             if self._model_flags.baseline_includes_uncertainty:
-                print(baseline.shape)
+
                 output_dict["uncertainty"] = baseline[:, 1]
 
         return (
