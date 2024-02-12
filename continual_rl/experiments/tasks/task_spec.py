@@ -7,7 +7,7 @@ class TaskSpec(object):
     EnvironmentRunner.
     """
     def __init__(self, task_id, action_space_id, preprocessor, env_spec, num_timesteps, eval_mode,
-                 return_after_episode_num=None, with_continual_eval=True):
+                 return_after_episode_num=None, with_continual_eval=True,run_id=None,policy_id=None):
         self._task_id = task_id
         self._action_space_id = action_space_id
         self._preprocessor = preprocessor
@@ -16,6 +16,8 @@ class TaskSpec(object):
         self._eval_mode = eval_mode
         self._return_after_episode_num = return_after_episode_num
         self._with_continual_eval = with_continual_eval
+        self._run_id=run_id
+        self._policy_id=policy_id
 
     @property
     def task_id(self):
@@ -62,6 +64,18 @@ class TaskSpec(object):
         Whether or not the task should be done in evaluation mode (i.e. the model should not be updated).
         """
         return self._eval_mode
+    @property
+    def run_id(self):
+        """
+        Whether or not the task should be done in evaluation mode (i.e. the model should not be updated).
+        """
+        return self._run_id
+    @property
+    def policy_id(self):
+        """
+        Whether or not the task should be done in evaluation mode (i.e. the model should not be updated).
+        """
+        return self._policy_id
 
     @property
     def return_after_episode_num(self):

@@ -1,3 +1,5 @@
+import os.path
+
 import torch
 import numpy as np
 from collections import deque
@@ -126,7 +128,8 @@ class EnvironmentRunnerBatch(EnvironmentRunnerBase):
             raw_observations, rewards, dones, infos = list(result)
             import time
             ts=time.time() - self.start
-            f = open('results_cart_trainCRL_' + config_.env_name + '.txt', 'a+')
+            outfile=os.path.join(self._output_dir,'results_cart_trainCRL_.txt')
+            f = open(outfile, 'a+')
 
             for o, (obs,reward,dd) in enumerate(zip(raw_observations,rewards,dones)):
                 if dd:
