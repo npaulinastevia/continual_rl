@@ -54,8 +54,7 @@ class ArgparseManager(object):
     @classmethod
     def parse(cls, raw_args):
         # Load the available policies and experiments
-        final_directory = os.path.join(current_directory, options.algo + '_' + options.project_name + '_' + options.run)
-        os.makedirs(final_directory, exist_ok=True)
+
         available_policies = get_available_policies()
         available_experiments = get_available_experiments()
 
@@ -79,9 +78,7 @@ class ArgparseManager(object):
         else:
             # otherwise default to command-line mode and use command line parser
             args, extras = argparser.command_line_mode_parser.parse_known_args(raw_args)
-            output_file_path = os.path.join(output_path, f"experiment_{experiment_json['timestamp']}.json")
-            with open(output_file_path, "w") as output_file:
-                output_file.write(json.dumps(experiment_json))
+            
 
             # Extras is a list in the form ["--arg1", "val1", "--arg2", "val2"]. Convert it to a dictionary
             raw_experiment = {extras[i].replace('--', ''): extras[i + 1] for i in range(0, len(extras), 2)}
