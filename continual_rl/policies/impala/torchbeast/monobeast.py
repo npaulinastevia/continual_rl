@@ -639,9 +639,11 @@ class Monobeast():
         B = self._model_flags.batch_size
 
         def lr_lambda(epoch):
+
             return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
         if self._model_flags.use_scheduler:
+
             self._scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
         else:
             self._scheduler = None
@@ -659,9 +661,9 @@ class Monobeast():
                 t.share_memory_()
             initial_agent_state_buffers.append(state)
 
-        # Setup actor processes and kick them off
+        # Setup actor processes and kick them offset
         self._actor_processes = []
-        ctx = mp.get_context("fork")
+        ctx = mp.get_context("fork") #mp.get_context("fork")
 
         # See: https://stackoverflow.com/questions/47085458/why-is-multiprocessing-queue-get-so-slow for why Manager
         self.free_queue = py_mp.Manager().Queue()
@@ -681,6 +683,7 @@ class Monobeast():
                     initial_agent_state_buffers,
                 ),
             )
+
             actor.start()
             self._actor_processes.append(actor)
 
