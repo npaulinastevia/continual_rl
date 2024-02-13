@@ -4,8 +4,9 @@ from multiprocessing import Manager, Process
 import urllib
 import os
 
+#http://localhost:8888
 
-SERVER_IP = os.environ.get("SANE_VIZ_SERVER_IP", "127.0.0.1")
+SERVER_IP = os.environ.get("SANE_VIZ_SERVER_IP", "http://localhost:8888") #os.environ.get("SANE_VIZ_SERVER_IP", "127.0.0.1")
 
 
 class NodeVizSingleton(object):
@@ -53,13 +54,16 @@ class NodeVizSingleton(object):
         return urllib.parse.quote_plus(tree_id.replace("/", "_"))
 
     def _create_node_internal(self, tree_id, node_id):
-        requests.get(f"http://{SERVER_IP}/api/get_or_create/{self.make_tree_name_safe(tree_id)}/{node_id}")
+        pass
+        #requests.get(f"http://{SERVER_IP}/api/get_or_create/{self.make_tree_name_safe(tree_id)}/{node_id}")
 
     def _register_created_from_internal(self, tree_id, node_id, created_from_id):
-        requests.get(f"http://{SERVER_IP}/api/created_from/{self.make_tree_name_safe(tree_id)}/{node_id}/{created_from_id}")
+        pass
+        #requests.get(f"http://{SERVER_IP}/api/created_from/{self.make_tree_name_safe(tree_id)}/{node_id}/{created_from_id}")
 
     def _merge_node_internal(self, tree_id, node_id, merged_into_id):
-        requests.get(f"http://{SERVER_IP}/api/merge/{self.make_tree_name_safe(tree_id)}/{node_id}/{merged_into_id}")
+        pass
+        #requests.get(f"http://{SERVER_IP}/api/merge/{self.make_tree_name_safe(tree_id)}/{node_id}/{merged_into_id}")
 
     def create_node(self, tree_id, node_id):
         self._message_queue.put({"type": "create", "tree_id": tree_id, "node_id": node_id})
