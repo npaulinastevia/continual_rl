@@ -68,8 +68,10 @@ class Environment:
             prior_return = prior_info["episode_return"]
             episode_return = torch.tensor(prior_return if prior_return is not None else np.nan)
             self.episode_return = episode_return
-
-        frame = _format_frame(frame)
+        if len(frame.shape)<=1:
+            frame=torch.from_numpy(frame)
+        else:
+            frame = _format_frame(frame)
         reward = torch.tensor(reward).view(1, 1)
         done = torch.tensor(done).view(1, 1)
 
