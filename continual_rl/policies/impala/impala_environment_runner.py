@@ -31,6 +31,7 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
         flags.action_space_id = task_spec.action_space_id
         flags.task_id = task_spec.task_id
         flags.env_spec = task_spec.env_spec
+        flags.output_dir=self._config.output_dir
 
         # Really just needs to not be "test_render", but these are the intended options
         flags.mode = "test" if task_spec.eval_mode else "train"
@@ -109,6 +110,7 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
             # Eval_mode only does one step of collection at a time, so this is the number of timesteps since last return
             if task_spec.eval_mode:
                 timesteps = stats["step"]
+                all_F=stats["all_flags"]
             else:
                 timesteps = stats["step_delta"]
 
@@ -120,12 +122,13 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
             for key in stats.keys():
                 if key.endswith("loss") or key == "total_norm":
                     logs_to_report.append({"type": "scalar", "tag": key, "value": stats[key]})
-
+            stats["video"]=None
             if "video" in stats and stats["video"] is not None:
                 video_log = self._render_video(task_spec.preprocessor, stats["video"])
                 if video_log is not None:
                     logs_to_report.extend(video_log)
-
+        if task_spec.eval_mode:
+            return timesteps, all_env_data, rewards_to_report, logs_to_report,all_F
         return timesteps, all_env_data, rewards_to_report, logs_to_report
 
     def cleanup(self, task_spec):

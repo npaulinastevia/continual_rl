@@ -1,7 +1,11 @@
 import multiprocessing
 
-algo='clear'
+#algo='clear'
 eval_mode=False
-env_name="CartPole-v0"
-task_name='single_CartPole-v0'
+if eval_mode:
+    episode=1000
+else:
+    episode=3200
+#env_name="CartPole-v0"
+#task_name='single_CartPole-v0'
 

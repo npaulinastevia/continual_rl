@@ -12,11 +12,8 @@ if __name__ == "__main__":
         # Windows doesn't support forking, so fall back to spawn instead
         assert "cannot find context" in str(e)
         multiprocessing.set_start_method("spawn")
-
     experiment, policy = ArgparseManager.parse(sys.argv[1:])
-
     if experiment is None:
         raise RuntimeError("No experiment started. Most likely there is no new run to start.")
-
     summary_writer = SummaryWriter(log_dir=experiment.output_dir)
     experiment.try_run(policy, summary_writer=summary_writer)

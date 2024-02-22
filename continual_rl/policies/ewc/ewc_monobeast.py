@@ -108,7 +108,6 @@ class EWCMonobeast(Monobeast):
         self._prev_task_id = None
         self._checkpoint_lock = threading.Lock()
         self._collection_paused = False
-
         self._tasks = None  # If you observe this never getting set, make sure initialize_tasks is getting called
 
     def save(self, output_path):
@@ -141,7 +140,6 @@ class EWCMonobeast(Monobeast):
         if metadata is not None:
             self._prev_task_id = metadata["prev_task_id"]
             per_task_metadata = metadata["per_task_metadata"]
-
             for task_id in self._tasks.keys():
                 self._tasks[task_id].ewc_regularization_terms = per_task_metadata[key_fn(task_id)]
 
@@ -168,7 +166,6 @@ class EWCMonobeast(Monobeast):
     def _compute_ewc_loss(self, task_flags, model):
         ewc_loss = 0
         num_tasks_included = 0
-
         # For each task, incorporate its regularization terms. If online ewc, then there should only be one "task"
         for task_id, task_info in self._tasks.items():
             if task_info.ewc_regularization_terms is not None and (

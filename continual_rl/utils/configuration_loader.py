@@ -50,6 +50,13 @@ class ConfigurationLoader(object):
 
         policy_class = self._available_policies[policy_id].policy
         policy_config_class = self._available_policies[policy_id].config
+        if 'resume-id' in raw_config.keys():
+            del raw_config['resume-id']
+        #'continual_rl_commit', 'timestamp'
+        if 'continual_rl_commit' in raw_config.keys():
+            del raw_config['continual_rl_commit']
+        if 'timestamp' in raw_config.keys():
+            del raw_config['timestamp']
         policy_config = policy_config_class().load_from_dict(raw_config)
 
         # Set the experiment_output dir such that is accessible both from the experiment and from the policy
@@ -111,12 +118,13 @@ class ConfigurationLoader(object):
         # experiment file. This allows for multiple experiment sets
         json_experiment_name = os.path.basename(os.path.splitext(config_path)[0])
         output_directory = os.path.join(output_dir, json_experiment_name)
+        output_directory = output_dir
 
         with open(config_path) as json_file:
             json_raw = json_file.read()
             experiments = json.loads(json_raw)
 
-        return self.load_next_experiment_from_dicts(output_directory, experiments, subdirectory_from_timestamp=False,
+        return self.load_next_experiment_from_dicts(output_directory, [experiments], subdirectory_from_timestamp=False,
                                                     meta_data=meta_data, resume_id=resume_id)
 
     def load_next_experiment_from_dicts(self, experiment_base_directory, experiments, subdirectory_from_timestamp=True,
@@ -170,6 +178,7 @@ class ConfigurationLoader(object):
 
             # If one isn't specified, find the first experiment (ie numbered folder) that doesn't yet exist
             # We do it this way so that if folders '0' and '2' exist, we will run '1' now.
+
             if next_experiment_id is None:
                 for experiment_id in range(len(experiments)):
                     if not str(experiment_id) in existing_experiments:
@@ -177,6 +186,7 @@ class ConfigurationLoader(object):
                         break
 
             experiment_output_dir = os.path.join(experiment_base_directory, str(next_experiment_id))
+            experiment_output_dir = experiment_base_directory
 
         experiment = None
         policy = None

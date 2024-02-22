@@ -187,6 +187,12 @@ class Experiment(object):
             start_task_id = 0
 
     def try_run(self, policy, summary_writer):
+        import os
+        file=os.path.join(self.output_dir,'out.txt')
+        f = open(file, 'a+')
+        f.write(
+            str(self.output_dir) + '\n')
+        f.close()
         try:
             self._run(policy, summary_writer)
         except Exception as e:

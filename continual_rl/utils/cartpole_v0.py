@@ -161,6 +161,10 @@ class CartPoleEnv(gym.Env):
             self.steps_beyond_done += 1
             reward = 0.0
 
+        if -0.5 < x < -0.45 :
+            reward += 50
+        if 0.45 < x < 0.5 :
+            reward += 50
         return np.array(self.state), reward, done, {}
 
     def reset(self):

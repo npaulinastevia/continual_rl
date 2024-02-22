@@ -172,6 +172,10 @@ class NSCartPoleV2(gym.Env):
         """
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
         self.state, reward, done = self.transition(self.state, action, True)
+        if -0.5 < self.state[0] < -0.45 :
+            reward += 50
+        if 0.45 < self.state[0] < 0.5 :
+            reward += 50
         return np.array(self.state), reward, done, {}
 
     def print_state(self):

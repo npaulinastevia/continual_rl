@@ -130,17 +130,7 @@ class EnvironmentRunnerBatch(EnvironmentRunnerBase):
             ts=time.time() - self.start
 
 
-            for o, (obs,reward,dd) in enumerate(zip(raw_observations,rewards,dones)):
-                outfile = os.path.join(self._output_dir, 'results_cart_trainCRL_.txt')
-                f = open(outfile, 'a+')
-                assert False
-                if dd:
-                    self.epi=self.epi+1
-                f.write(
-                    str(env_spec) + ',' + config_.algo + ',' + str(obs[0]) + ',' + str(reward) + ',' + str(
-                        self._total_timesteps) + ',' + str(ts) + ',' + str(
-                        self.epi)+','+str(o)+ ','+str(task_id)+ ','+str(dd)+'\n')
-                f.close()
+
 
 
             self._total_timesteps += self._num_parallel_envs

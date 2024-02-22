@@ -137,13 +137,23 @@ class ImpalaNet(nn.Module):
             if len(policy_logits.shape)==1:
                 policy_logits=torch.unsqueeze(policy_logits,0)
                 baseline = torch.unsqueeze(baseline, 0)
-        policy_logits_subset = policy_logits[:, :current_action_size]
+                policy_logits = torch.unsqueeze(policy_logits, 0)
+                baseline = torch.unsqueeze(baseline, 0)
+                policy_logits_subset = policy_logits[:,:, :current_action_size]
+            else:
+                #policy_logits=policy_logits.view(-1,policy_logits.shape[-1])
+                #baseline = baseline.view(-1,baseline.shape[-1])
+                policy_logits_subset = policy_logits[:,:, :current_action_size]
+
 
         if self.training:
-            action = torch.multinomial(F.softmax(policy_logits_subset, dim=1), num_samples=1)
+
+            if len(self._observation_space.shape)==1:
+                policy_logits_subset=policy_logits_subset.view(-1,policy_logits_subset.shape[-1])
+            action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1), num_samples=1)
         else:
             # Don't sample when testing.
-            action = torch.argmax(policy_logits_subset, dim=1)
+            action = torch.argmax(policy_logits_subset, dim=-1)
         if len(self._observation_space.shape) >1:
             policy_logits = policy_logits.view(T, B, self.num_actions)
             baseline = baseline.view(T, B, self._baseline_output_dim)
@@ -152,11 +162,11 @@ class ImpalaNet(nn.Module):
             if self._model_flags.baseline_includes_uncertainty:
                 output_dict["uncertainty"] = baseline[:, :, 1]
         else:
-            output_dict = dict(policy_logits=policy_logits, baseline=baseline[:, 0], action=action)
 
+            output_dict = dict(policy_logits=policy_logits, baseline=baseline[:,:, 0], action=action)
             if self._model_flags.baseline_includes_uncertainty:
+                output_dict["uncertainty"] = baseline[:, :, 1]
 
-                output_dict["uncertainty"] = baseline[:, 1]
 
         return (
             output_dict,

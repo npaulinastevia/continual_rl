@@ -38,7 +38,7 @@ def create_atari_sequence_loader(
 def create_atari_single_game_loader(env_name):
     return lambda: Experiment(tasks=[
         # Use the env name as the task_id if it's a 1:1 mapping between env and task (as "single game" implies)
-        get_single_atari_task(env_name, 0, env_name, num_timesteps=5e7, max_episode_steps=10000)
+        get_single_atari_task(env_name, 0, env_name, num_timesteps=5e8, max_episode_steps=10000)
     ])
 
 

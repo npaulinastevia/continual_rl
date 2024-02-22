@@ -252,9 +252,7 @@ class Monobeast():
 
                     with torch.no_grad():
                         agent_output, agent_state = model(env_output, task_flags.action_space_id, agent_state)
-
                     timings.time("model")
-
                     env_output = env.step(agent_output["action"])
 
                     timings.time("step")
@@ -347,8 +345,10 @@ class Monobeast():
         bootstrap_value = learner_outputs["baseline"][-1]
 
         # Move from obs[t] -> action[t] to action[t] -> obs[t].
+
         batch = {key: tensor[1:] for key, tensor in batch.items()}
         learner_outputs = {key: tensor[:-1] for key, tensor in learner_outputs.items()}
+
 
         rewards = batch["reward"]
 
@@ -427,6 +427,7 @@ class Monobeast():
             # until the end of the game, where a real return is produced.
             batch_done_flags = batch_for_logging["done"] * ~torch.isnan(batch_for_logging["episode_return"])
             episode_returns = batch_for_logging["episode_return"][batch_done_flags]
+
             stats.update({
                 "episode_returns": tuple(episode_returns.cpu().numpy()),
                 "mean_episode_return": torch.mean(episode_returns).item(),
@@ -601,6 +602,7 @@ class Monobeast():
             json.dump(metadata, metadata_file)
 
     def load(self, output_path):
+        print('okkk',output_path)
         model_file_path = os.path.join(output_path, "model.tar")
         if os.path.exists(model_file_path):
             self.logger.info(f"Loading model from {output_path}")
@@ -886,6 +888,7 @@ class Monobeast():
     def _collect_test_episode(pickled_args):
         task_flags, logger, model = cloudpickle.loads(pickled_args)
 
+        flag_injected_bug_spotted=[False,False]
         gym_env, seed = Utils.make_env(task_flags.env_spec, create_seed=True)
         logger.info(f"Environment and libraries setup with seed {seed}")
         env = environment.Environment(gym_env)
@@ -893,19 +896,27 @@ class Monobeast():
         done = False
         step = 0
         returns = []
-
+        total_flags=[]
         while not done:
             if task_flags.mode == "test_render":
                 env.gym_env.render()
             agent_outputs = model(observation, task_flags.action_space_id)
             policy_outputs, _ = agent_outputs
+
             observation = env.step(policy_outputs["action"])
             step += 1
+            if -0.5 < observation['frame'][0] < -0.45 and not flag_injected_bug_spotted[0]:
+                flag_injected_bug_spotted[0] = True
+            if 0.45 < observation['frame'][0] < 0.5 and not flag_injected_bug_spotted[1]:
+                flag_injected_bug_spotted[1] = True
             done = observation["done"].item() and not torch.isnan(observation["episode_return"])
 
             # NaN if the done was "fake" (e.g. Atari). We want real scores here so wait for the real return.
             if done:
+
                 returns.append(observation["episode_return"].item())
+                total_flags.append(flag_injected_bug_spotted)
+                flag_injected_bug_spotted = [False, False]
                 logger.info(
                     "Episode ended after %d steps. Return: %.1f",
                     observation["episode_step"].item(),
@@ -913,13 +924,14 @@ class Monobeast():
                 )
 
         env.close()
-        return step, returns
+        return step, returns,total_flags
 
     def test(self, task_flags, num_episodes: int = 10):
         if not self._model_flags.no_eval_mode:
             self.actor_model.eval()
 
         returns = []
+        all_f=[]
         step = 0
 
         # Break the number of episodes we need to run up into batches of num_parallel, which get run concurrently
@@ -935,13 +947,14 @@ class Monobeast():
                     async_objs.append(async_obj)
 
                 for async_obj in async_objs:
-                    episode_step, episode_returns = async_obj.get()
+                    episode_step, episode_returns,all_flags = async_obj.get()
                     step += episode_step
                     returns.extend(episode_returns)
+                    all_f.extend(all_flags)
 
         self.logger.info(
             "Average returns over %i episodes: %.1f", len(returns), sum(returns) / len(returns)
         )
-        stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns)}
+        stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns),"all_flags": all_f}
 
         yield stats
