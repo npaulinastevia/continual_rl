@@ -1,12 +1,16 @@
 import logging
 import tempfile
 import types
+from pathlib import Path
+
 import gym
 import numpy as np
 import random
 import torch
 import os
 import tempfile
+
+from .Environment import LTREnvV2
 from .cartpole_v0 import CartPoleEnv
 from .nscartpole_v0 import NSCartPoleV0
 from .nscartpole_v2 import NSCartPoleV2
@@ -58,6 +62,10 @@ class Utils(object):
         f = open('results_cart_testCRL_' + env_spec + '.txt', 'a+')
         f.write('Environments,Algorithms,x1,reward,steps,time,episodes,env_id,task_id,done' + '\n')
         f.close()
+        train_data_path = r'C:\Users\panou\PycharmProjects\bug_localization\RL_Model\Aspectj.csv'
+        file_path = r'C:\Users\panou\PycharmProjects\continual_rl\LTR'
+        Path(file_path).mkdir(parents=True, exist_ok=True)
+        project_name = 'AspectJ'
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):
@@ -71,6 +79,18 @@ class Utils(object):
                         env=NSCartPoleV1()
                     elif env_spec=='NSCartPole-v2':
                         env=NSCartPoleV2()
+                    elif env_spec=="bug_log1":
+                        env=LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
+                            tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                    elif env_spec=="bug_log3":
+                        env=LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
+                            tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                    elif env_spec=="bug_log2":
+                        env=LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
+                            tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
                     else:
                         env = gym.make(env_spec)
             except Exception as e:

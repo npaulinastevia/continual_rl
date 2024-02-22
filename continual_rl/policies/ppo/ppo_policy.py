@@ -32,6 +32,9 @@ class PPOPolicy(PolicyBase):
         observation_size = observation_space.shape
         if len(observation_size)==1:
             compressed_observation_size=observation_size
+        elif len(observation_size)==2:
+            compressed_observation_size = [1,observation_size[0] , observation_size[1],
+                                           ]
         else:
             compressed_observation_size = [observation_size[0] * observation_size[1], observation_size[2], observation_size[3]]
         self._config = config
