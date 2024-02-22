@@ -34,7 +34,33 @@ def create_atari_sequence_loader(
         )
     return loader
 
+def create_bug_log_sequence_loader(
+    task_prefix,
+    game_names,
+    num_timesteps=5e7,
+    max_episode_steps=None,
+    full_action_space=False,
+    continual_testing_freq=1000,
+    cycle_count=1,
+):
+    def loader():
+        tasks = [
+            get_single_atari_task(
+                f"{task_prefix}_{action_space_id}",
+                action_space_id,
+                name,
+                num_timesteps,
+                max_episode_steps=max_episode_steps,
+                full_action_space=full_action_space
+            ) for action_space_id, name in enumerate(game_names)
+        ]
 
+        return Experiment(
+            tasks,
+            continual_testing_freq=continual_testing_freq,
+            cycle_count=cycle_count,
+        )
+    return loader
 def create_atari_single_game_loader(env_name):
     return lambda: Experiment(tasks=[
         # Use the env name as the task_id if it's a 1:1 mapping between env and task (as "single game" implies)
@@ -231,7 +257,18 @@ def get_available_experiments():
             continual_testing_freq=0.25e6,
             cycle_count=5,
          ),
-
+        "bug_loc_multiple": create_atari_sequence_loader(
+            "bug_loc_multiple",
+            ["bug_log1",
+             "bug_log2",
+             "bug_log3",
+             ],
+            max_episode_steps=10000,
+            num_timesteps=5e7,
+            full_action_space=True,
+            continual_testing_freq=0.25e6,
+            cycle_count=5,
+        ),
         "mini_atari_3_tasks_3_cycles": create_atari_sequence_loader(
             "mini_atari_3_tasks_3_cycles",
             ["SpaceInvadersNoFrameskip-v4",

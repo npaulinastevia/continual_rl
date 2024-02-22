@@ -1,6 +1,4 @@
 import gym
-
-import config_
 from continual_rl.utils.env_wrappers import (
     NoopResetEnv,
     MaxAndSkipEnv,
@@ -14,7 +12,8 @@ from continual_rl.utils.env_wrappers import (
 )
 from .image_task import ImageTask
 from .cartpole_task import CartPoleTask
-
+from .buglog_task import BuglogTask
+import config_
 def make_atari(env_id, max_episode_steps=None, full_action_space=False):
     env = gym.make(env_id, full_action_space=full_action_space)
     assert 'NoFrameskip' in env.spec.id
@@ -47,8 +46,27 @@ def get_single_atari_task(task_id, action_space_id, env_name, num_timesteps, max
     Wrap the task creation in a scope so the env_name in the lambda doesn't change out from under us.
     The atari max step default is 100k.
     """
+
     if 'CartPole' in env_name:
         return CartPoleTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
+    if "bug_log1" in env_name:
+
+        return BuglogTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
+        #return LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
+         #          tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+         #          use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+    if "bug_log2" in env_name:
+        return BuglogTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name,
+                          num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
+        #return LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
+        #           tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+        #           use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+    if "bug_log3" in env_name:
+        return BuglogTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name,
+                          num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
+        #return LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
+         #          tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+         #          use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
     return ImageTask(
         task_id=task_id,
         action_space_id=action_space_id,
