@@ -29,9 +29,14 @@ class ImpalaNet(nn.Module):
             if len(observation_space.shape) == 1:
                 combined_observation_size = observation_space.shape
             else:
-                combined_observation_size = [observation_space.shape[0] * observation_space.shape[1],
-                                             observation_space.shape[2],
-                                             observation_space.shape[3]]
+                if len(observation_space.shape) == 2:
+                    combined_observation_size = [1,
+                                                 observation_space.shape[0],
+                                                 observation_space.shape[1]]
+                else:
+                    combined_observation_size = [observation_space.shape[0] * observation_space.shape[1],
+                                                 observation_space.shape[2],
+                                                 observation_space.shape[3]]
                 self._conv_net = get_network_for_size(combined_observation_size, arch=conv_net_arch)
         else:
             self._conv_net = conv_net

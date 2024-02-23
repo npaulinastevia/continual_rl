@@ -8,6 +8,7 @@ def get_network_for_size(size, output_shape=None, **kwargs):
     Size is expected to be [channel, dim, dim]
     """
     size = list(size)  # In case the input is a tuple
+    print(size)
     if size[-2:] == [7, 7]:
         net = ConvNet7x7
     elif size[-2:] == [28, 28]:
@@ -17,6 +18,8 @@ def get_network_for_size(size, output_shape=None, **kwargs):
     elif size[-2:] == [64, 64]:
         # just use 84x84, it should compute output dim
         net = ConvNet84x84
+    elif size[-2:]==[31, 1025]:
+        net = ConvNet28x28
     else:
         raise AttributeError("Unexpected input size")
 
