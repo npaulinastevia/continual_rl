@@ -2,7 +2,8 @@ import sys
 from torch import multiprocessing
 from torch.utils.tensorboard.writer import SummaryWriter
 from continual_rl.utils.argparse_manager import ArgparseManager
-
+import os
+#os.environ['TOKENIZERS_PARALLELISM']='true'
 
 if __name__ == "__main__":
     # Pytorch multiprocessing requires either forkserver or spawn.
