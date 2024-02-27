@@ -2,12 +2,12 @@ import multiprocessing
 
 #algo='clear'
 eval_mode=False
-file_path = r'./LTR'
+file_path = r'C:\Users\panou\PycharmProjects\continual_rl\LTR'
 project_name = 'AspectJ'
 if eval_mode:
     episode=1000
 else:
-    train_data_path = r'./AspectJ_train.csv'
+    train_data_path = r'C:\Users\panou\PycharmProjects\continual_rl\AspectJ_train.csv'
     episode=3200
 #env_name="CartPole-v0"
 #task_name='single_CartPole-v0'

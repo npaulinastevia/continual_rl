@@ -138,6 +138,7 @@ class LTREnv(gym.Env):
         self.remained = self.filtered_df['cid'].tolist()
         self.match_id = self.filtered_df[self.filtered_df['match'] == 1]['cid'].tolist()
         self.t = 0
+
         # self.picked.append(random.sample(self.remained, 1)[0])
         # self.remained.remove(self.picked[-1])
         return self.__get_observation()
@@ -212,8 +213,9 @@ class LTREnv(gym.Env):
 
     def __get_observation(self):
         # ToDO: This will not be worked
+        print('iiiccc216')
         self.t += 1
-        print('venue icicic')
+
         report_data, code_data = self.df[
                                      (self.df['cid'] == self.picked[-1]) & (self.df['id'] == self.current_id)].report, \
                                  self.df[
@@ -230,7 +232,7 @@ class LTREnv(gym.Env):
                                                                     truncation=True,
                                                                     padding=True,
                                                                     return_tensors='pt')
-        print(report_token,'report token')
+
         report_output, code_output = self.model(**report_token.to(self.dev)), self.model(**code_token.to(self.dev))
         report_embedding, code_embedding = self.reduce_dimension_by_mean_pooling(report_output.last_hidden_state,
                                                                                  report_token['attention_mask']), \
@@ -262,9 +264,11 @@ class LTREnvV2(LTREnv):
 
     def reset(self):
         self.all_embedding = []
+
         return super(LTREnvV2, self).reset()
 
     def _LTREnv__get_observation(self):
+        print('iiiccc271gooooooone')
         self.t += 1
 
         if len(self.all_embedding) == 0:
@@ -329,6 +333,7 @@ class LTREnvV3(LTREnv):
         return super(LTREnvV3, self).reset()
 
     def _LTREnv__get_observation(self):
+        print('iiiccc336')
         self.t += 1
 
         if len(self.all_embedding) == 0:
@@ -407,6 +412,7 @@ class LTREnvV4(LTREnv):
             yield temp
 
     def _LTREnv__get_observation(self):
+        print('iiiccc415')
         self.t += 1
 
         if len(self.all_embedding) == 0:
@@ -486,6 +492,7 @@ class LTREnvV5(LTREnv):
             yield temp
 
     def _LTREnv__get_observation(self):
+        print('iiiccc495')
         self.t += 1
 
         if len(self.all_embedding) == 0:

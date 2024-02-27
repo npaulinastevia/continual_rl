@@ -188,6 +188,8 @@ class ImpalaNet(nn.Module):
                 #policy_logits=policy_logits.view(-1,policy_logits.shape[-1])
                 #baseline = baseline.view(-1,baseline.shape[-1])
                 policy_logits_subset = policy_logits[:,:, :current_action_size]
+        else:
+            policy_logits_subset = policy_logits[:, :current_action_size]
 
 
         if self.training:

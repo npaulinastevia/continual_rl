@@ -223,7 +223,9 @@ class Monobeast():
             observations_to_render = []  # Only populated by actor 0
 
             env = environment.Environment(gym_env)
+
             env_output = env.initial()
+
             agent_state = model.initial_state(batch_size=1)
             agent_output, unused_state = model(env_output, task_flags.action_space_id, agent_state)
 
@@ -645,11 +647,11 @@ class Monobeast():
         T = self._model_flags.unroll_length
         B = self._model_flags.batch_size
 
-        def lr_lambda(epoch):
+        #def lr_lambda(epoch):
 
-            return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
+        #    return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
-        #self._model_flags.use_scheduler=False
+        self._model_flags.use_scheduler=False
         if self._model_flags.use_scheduler:
 
             self._scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
@@ -671,7 +673,7 @@ class Monobeast():
 
         # Setup actor processes and kick them offset
         self._actor_processes = []
-        ctx = mp.get_context("fork") #mp.get_context("fork")
+        ctx = mp.get_context("spawn") #mp.get_context("fork")
 
         # See: https://stackoverflow.com/questions/47085458/why-is-multiprocessing-queue-get-so-slow for why Manager
         self.free_queue = py_mp.Manager().Queue()

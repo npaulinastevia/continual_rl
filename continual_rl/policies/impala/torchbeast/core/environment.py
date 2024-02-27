@@ -33,10 +33,12 @@ class Environment:
     def initial(self):
         initial_reward = torch.zeros(1, 1)
         # This supports only single-tensor actions ATM.
+
         initial_last_action = torch.zeros(1, 1, dtype=torch.int64)
         self.episode_return = torch.zeros(1, 1)
         self.episode_step = torch.zeros(1, 1, dtype=torch.int32)
         initial_done = torch.zeros(1, 1, dtype=torch.uint8)  # Originally this was ones, which makes there be 0 reward episodes
+        print('1innnnnnnnnnnnnnnnnnnnn',self.gym_env)
         if len(self.gym_env.reset().shape)==1:
             initial_frame=torch.from_numpy(self.gym_env.reset())
         elif len(self.gym_env.reset().shape)==2:
@@ -45,6 +47,7 @@ class Environment:
             initial_frame = initial_frame.unsqueeze(0)
         else:
             initial_frame = _format_frame(self.gym_env.reset())
+
         return dict(
             frame=initial_frame,
             reward=initial_reward,

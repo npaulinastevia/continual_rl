@@ -67,7 +67,7 @@ class Utils(object):
         file_path = config_.file_path
         Path(file_path).mkdir(parents=True, exist_ok=True)
         project_name = config_.project_name
-        mpath = '/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
+        mpath = 'microsoft/codebert-base'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):
