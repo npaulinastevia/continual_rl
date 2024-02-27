@@ -17,6 +17,8 @@ def get_network_for_size(size, output_shape=None, **kwargs):
     elif size[-2:] == [64, 64]:
         # just use 84x84, it should compute output dim
         net = ConvNet84x84
+    elif size[-2:]==[31,1025]:
+        net = ConvNet28x28
     else:
         raise AttributeError("Unexpected input size")
 

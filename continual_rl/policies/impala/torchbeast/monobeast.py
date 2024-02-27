@@ -234,12 +234,17 @@ class Monobeast():
             signal.signal(signal.SIGTERM, end_task)
 
             while True:
+                print('free_queue', len(buffers['frame']), buffers['frame'][0].shape,env_output['frame'].shape)
                 index = free_queue.get()
+
                 if index is None:
                     break
 
                 # Write old rollout end.
+
                 for key in env_output:
+                    print(key,'keyline243')
+
                     buffers[key][index][0, ...] = env_output[key]
                 for key in agent_output:
                     buffers[key][index][0, ...] = agent_output[key]
@@ -256,7 +261,7 @@ class Monobeast():
                     timings.time("model")
 
                     env_output = env.step(agent_output["action"])
-
+                    print(agent_output, 'env_output')
                     timings.time("step")
 
                     for key in env_output:
@@ -642,6 +647,7 @@ class Monobeast():
 
             return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
+        #self._model_flags.use_scheduler=False
         if self._model_flags.use_scheduler:
 
             self._scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)

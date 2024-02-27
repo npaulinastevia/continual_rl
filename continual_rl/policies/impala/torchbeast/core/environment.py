@@ -39,6 +39,10 @@ class Environment:
         initial_done = torch.zeros(1, 1, dtype=torch.uint8)  # Originally this was ones, which makes there be 0 reward episodes
         if len(self.gym_env.reset().shape)==1:
             initial_frame=torch.from_numpy(self.gym_env.reset())
+        elif len(self.gym_env.reset().shape)==2:
+            initial_frame=torch.from_numpy(self.gym_env.reset())
+            initial_frame= initial_frame.unsqueeze(0)
+            initial_frame = initial_frame.unsqueeze(0)
         else:
             initial_frame = _format_frame(self.gym_env.reset())
         return dict(
@@ -70,6 +74,10 @@ class Environment:
             self.episode_return = episode_return
         if len(frame.shape)<=1:
             frame=torch.from_numpy(frame)
+        elif len(frame.shape)==2:
+            frame = torch.from_numpy(frame)
+            frame=frame.unsqueeze(0)
+            frame = frame.unsqueeze(0)
         else:
             frame = _format_frame(frame)
         reward = torch.tensor(reward).view(1, 1)

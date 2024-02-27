@@ -29,9 +29,14 @@ class ImpalaNet(nn.Module):
             if len(observation_space.shape) == 1:
                 combined_observation_size = observation_space.shape
             else:
-                combined_observation_size = [observation_space.shape[0] * observation_space.shape[1],
-                                             observation_space.shape[2],
-                                             observation_space.shape[3]]
+                if len(observation_space.shape) == 2:
+                    combined_observation_size = [1,
+                                                 observation_space.shape[0],
+                                                 observation_space.shape[1]]
+                else:
+                    combined_observation_size = [observation_space.shape[0] * observation_space.shape[1],
+                                                 observation_space.shape[2],
+                                                 observation_space.shape[3]]
                 self._conv_net = get_network_for_size(combined_observation_size, arch=conv_net_arch)
         else:
             self._conv_net = conv_net
@@ -96,14 +101,53 @@ class ImpalaNet(nn.Module):
             else:
                 core_output = core_input
                 core_state = tuple()
+        elif len(self._observation_space.shape) == 2:
+
+            T, B, *_ = x.shape
+
+            #T=1
+            #if len(x.shape)==2:
+           #     B=1
+            #    x=x.view(T,B,x.shape[0],x.shape[1])
+            #else:
+            #    B=x.shape[0]
+            #x = torch.flatten(x, 0, 1)  # Merge time and batch.
+            #x = torch.flatten(x, 1, 2)  # Merge stacked frames and channels.
+            #x = x.float() / self._observation_space.high.max()
+
+            x = self._conv_net(x)
+
+            x = F.relu(x)
+            one_hot_last_action = F.one_hot(
+                inputs["last_action"].view(T * B), self.num_actions
+            ).float()
+            clipped_reward = inputs["reward"].float()
+            core_input = torch.cat([x, clipped_reward, one_hot_last_action], dim=-1)
+
+            if self.use_lstm:
+                core_input = core_input.view(T, B, -1)
+                core_output_list = []
+                notdone = (~inputs["done"]).float()
+                for input, nd in zip(core_input.unbind(), notdone.unbind()):
+                    # Reset core state to zero whenever an episode ended.
+                    # Make `done` broadcastable with (num_layers, B, hidden_size)
+                    # states:
+                    nd = nd.view(1, -1, 1)
+                    core_state = tuple(nd * s for s in core_state)
+                    output, core_state = self.core(input.unsqueeze(0), core_state)
+                    core_output_list.append(output)
+                core_output = torch.flatten(torch.cat(core_output_list), 0, 1)
+            else:
+                core_output = core_input
+                core_state = tuple()
         else:
             T, B, *_ = x.shape
+            print(x.shape,'x.shape')
             x = torch.flatten(x, 0, 1)  # Merge time and batch.
             x = torch.flatten(x, 1, 2)  # Merge stacked frames and channels.
             x = x.float() / self._observation_space.high.max()
             x = self._conv_net(x)
             x = F.relu(x)
-
             one_hot_last_action = F.one_hot(
                 inputs["last_action"].view(T * B), self.num_actions
             ).float()
@@ -149,6 +193,7 @@ class ImpalaNet(nn.Module):
             baseline = baseline.view(T, B, self._baseline_output_dim)
             action = action.view(T, B)
             output_dict = dict(policy_logits=policy_logits, baseline=baseline[:, :, 0], action=action)
+
             if self._model_flags.baseline_includes_uncertainty:
                 output_dict["uncertainty"] = baseline[:, :, 1]
         else:
