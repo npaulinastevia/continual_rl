@@ -2,7 +2,7 @@ from abc import ABC
 import numpy as np
 from continual_rl.experiments.tasks.task_spec import TaskSpec
 from continual_rl.utils.utils import Utils
-
+import os
 
 class TaskBase(ABC):
     ALL_TASK_IDS = set()
@@ -43,6 +43,7 @@ class TaskBase(ABC):
         self._rolling_return_count = rolling_return_count
         import time
         self.start=time.time()
+        self.episode = 0
 
         # The set of task parameters that the environment runner gets access to.
         self._task_spec = TaskSpec(self.task_id, action_space_id, preprocessor, env_spec, num_timesteps, eval_mode,
@@ -102,7 +103,6 @@ class TaskBase(ABC):
             self.logger(output_dir).info(f"{timestep}: {mean_rewards}")
             logs_to_report.append({"type": "scalar", "tag": reward_tag, "value": mean_rewards,
                                    "timestep": timestep})
-
         for log in logs_to_report:
             if summary_writer is not None:
                 self._report_log(summary_writer, log, run_id, default_timestep=timestep)
@@ -141,12 +141,55 @@ class TaskBase(ABC):
         environment_runner = policy.get_environment_runner(task_spec)  # Getting a new one will cause the envs to be re-created
         collected_returns = []
         collected_logs_to_report = []
+        outfile = os.path.join(output_dir, 'results_cart_trainCRL_.txt')
+        f = open(outfile, 'a+')
+        f.write('taskid,reward,steps,episode,time'+ '\n')
+        f.close()
+        if task_spec.eval_mode:
+            outfiletest = os.path.join(output_dir, 'results_cart_testCRL_.txt')
+            ft = open(outfiletest, 'a+')
+            ft.write('taskid,reward,steps,episode,time' + '\n')
+            ft.close()
+            bug_inj = os.path.join(output_dir, 'injected_bugs_spotted_RELINE.txt')
+            f = open(bug_inj, 'w+')
+
+        import time
+        import config_
 
         while task_timesteps < task_spec.num_timesteps:
+            if self.episode>=config_.episode:
+                break
 
             # all_env_data is a list of timestep_datas
-            timesteps, all_env_data, returns_to_report, logs_to_report = environment_runner.collect_data(task_spec)
+            if task_spec.eval_mode:
+                timesteps, all_env_data, returns_to_report, logs_to_report,flags = environment_runner.collect_data(task_spec)
+            else:
+                timesteps, all_env_data, returns_to_report, logs_to_report= environment_runner.collect_data(
+                    task_spec)
 
+            for r in range(len(returns_to_report)):
+                if not task_spec.eval_mode:
+                    f = open(outfile, 'a+')
+                    f.write(
+                        str(task_spec.task_id) + ',' + str(returns_to_report[r]) + ',' + str(
+                            timesteps) +',' + str(self.episode)+ ',' + str(-self.start+time.time())+'\n')
+                    f.close()
+                else:
+                    f = open(outfiletest, 'a+')
+                    f.write(
+                        str(task_spec.task_id) + ',' + str(str(returns_to_report[r])) + ',' + str(
+                            timesteps) + ',' + str(self.episode) + ',' + str(-self.start +time.time()) + '\n')
+                    f.close()
+                    f = open(bug_inj, 'w+')
+                    if flags[r][0]:
+                        f.write('BUG1 ')
+                    if flags[r][1]:
+                        f.write('BUG1 ')
+                    f.write('\n')
+                    f.close()
+                self.episode+=1
+                if self.episode >= config_.episode:
+                    break
             if not task_spec.eval_mode:
                 train_logs = policy.train(all_env_data)
 

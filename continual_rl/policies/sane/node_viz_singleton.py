@@ -4,8 +4,9 @@ from multiprocessing import Manager, Process
 import urllib
 import os
 
+#http://localhost:8888
 
-SERVER_IP = os.environ.get("SANE_VIZ_SERVER_IP", "127.0.0.1")
+SERVER_IP = os.environ.get("SANE_VIZ_SERVER_IP", "http://localhost:8888") #os.environ.get("SANE_VIZ_SERVER_IP", "127.0.0.1")
 
 
 class NodeVizSingleton(object):

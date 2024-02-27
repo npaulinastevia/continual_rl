@@ -1,2 +1,91 @@
-# Automatically loads requirements from the setup.py file, instead of duplicating the list of dependencies here.
-.
+absl-py @ file:///data/miniconda3/envs/opence-1.7/conda-bld/absl-py_1663968050826/work
+aiohttp @ file:///home/builder/cbouss/croot/aiohttp_1701443039833/work
+aiosignal @ file:///tmp/build/80754af9/aiosignal_1637843061372/work
+async-timeout @ file:///opt/conda/conda-bld/async-timeout_1664876369522/work
+attrs @ file:///croot/attrs_1695717839808/work
+av @ file:///data/miniconda3/envs/opence-1.7/conda-bld/av_1663997203130/work
+blinker @ file:///croot/blinker_1696539082084/work
+Bottleneck @ file:///opt/conda/conda-bld/bottleneck_1657175574298/work
+Brotli @ file:///opt/conda/conda-bld/brotli-split_1659616066417/work
+cachetools @ file:///tmp/build/80754af9/cachetools_1619597386817/work
+certifi @ file:///home/builder/cbouss/croot/certifi_1701115306566/work/certifi
+cffi @ file:///croot/cffi_1670423215080/work
+charset-normalizer @ file:///tmp/build/80754af9/charset-normalizer_1630003229654/work
+click @ file:///croot/click_1698129818227/work
+cloudpickle==3.0.0
+contourpy @ file:///opt/conda/conda-bld/contourpy_1663827418696/work
+cryptography @ file:///croot/cryptography_1677533078973/work
+cycler @ file:///tmp/build/80754af9/cycler_1637851556182/work
+dotmap==1.3.30
+einops==0.7.0
+elasticsearch @ file:///tmp/build/80754af9/elasticsearch_1625769069476/work
+filelock @ file:///croot/filelock_1672387136754/work
+fonttools==4.25.0
+frozenlist @ file:///croot/frozenlist_1698702685837/work
+future @ file:///croot/future_1677599885630/work
+gitdb==4.0.11
+GitPython==3.1.41
+google-auth @ file:///tmp/build/80754af9/google-auth_1626320605116/work
+google-auth-oauthlib @ file:///tmp/build/80754af9/google-auth-oauthlib_1617120569401/work
+grpcio @ file:///root/worker/containers/00000p6o7hq/tmp/build/80754af9/grpcio_1637590840970/work
+gym==0.21.0
+huggingface-hub @ file:///data/miniconda3/envs/opence-1.7/conda-bld/huggingface_hub_1663963729706/work
+idna @ file:///croot/idna_1666125583058/work
+importlib-metadata @ file:///croot/importlib-metadata_1678997092813/work
+importlib-resources==6.1.1
+joblib @ file:///croot/joblib_1685113425125/work
+kiwisolver @ file:///croot/kiwisolver_1672387171701/work
+labml==0.4.168
+labml-helpers==0.4.89
+labml-nn==0.4.117
+Markdown @ file:///root/worker/containers/00001aodpp6/tmp/build/80754af9/markdown_1614363847600/work
+MarkupSafe @ file:///opt/conda/conda-bld/markupsafe_1654597871247/work
+matplotlib @ file:///croot/matplotlib-suite_1693812773479/work
+multidict @ file:///croot/multidict_1665674239517/work
+munkres==1.1.4
+networkx @ file:///croot/networkx_1678964340664/work
+numexpr @ file:///croot/numexpr_1683221828520/work
+numpy==1.23.5
+oauthlib @ file:///croot/oauthlib_1679489634317/work
+packaging @ file:///croot/packaging_1693575179638/work
+pandas==1.3.4
+Pillow==9.4.0
+protobuf==3.19.6
+psutil @ file:///opt/conda/conda-bld/psutil_1656431278387/work
+pyasn1 @ file:///Users/ktietz/demo/mc3/conda-bld/pyasn1_1629708007385/work
+pyasn1-modules==0.2.8
+pycparser @ file:///tmp/build/80754af9/pycparser_1636541352034/work
+PyJWT @ file:///opt/conda/conda-bld/pyjwt_1657544598249/work
+pyOpenSSL @ file:///croot/pyopenssl_1690223432522/work
+pyparsing @ file:///opt/conda/conda-bld/pyparsing_1661452544222/work
+PySocks @ file:///root/worker/containers/00002h8m4hv/tmp/build/80754af9/pysocks_1605305817691/work
+python-dateutil @ file:///tmp/build/80754af9/python-dateutil_1626374649649/work
+pytz @ file:///croot/pytz_1695131593551/work
+PyYAML @ file:///croot/pyyaml_1698096056157/work
+regex @ file:///root/worker/containers/00003degtre/tmp/build/80754af9/regex_1648447734767/work
+requests @ file:///croot/requests_1690400229480/work
+requests-oauthlib==1.3.0
+rsa @ file:///tmp/build/80754af9/rsa_1614366226499/work
+sacremoses @ file:///data/miniconda3/envs/opence-1.7/conda-bld/sacremoses_1663963684853/work
+scipy==1.8.1
+seaborn @ file:///croot/seaborn_1673479201550/work
+sentencepiece==0.1.96
+six @ file:///tmp/build/80754af9/six_1644875935023/work
+smmap==5.0.1
+tabulate @ file:///opt/conda/conda-bld/tabulate_1657784114222/work
+tensorboard @ file:///data/miniconda3/envs/opence-1.7/conda-bld/tensorboard_1663982427461/work/tmp_pip_dir
+tensorboard-data-server @ file:///data/miniconda3/envs/opence-1.7/conda-bld/tensorboard-data-server_1663982401173/work/tensorboard_data_server-0.6.1-py3-none-any.whl
+tensorboard-plugin-wit==1.6.0
+tokenizers==0.11.4
+torch==1.12.1
+torchtext==0.13.1a0+35066f2
+torchvision==0.13.1
+tornado @ file:///croot/tornado_1696936976773/work
+tqdm @ file:///croot/tqdm_1679561868699/work
+transformers @ file:///data/miniconda3/envs/opence-1.7/conda-bld/transformers_1663964735964/work
+typing_extensions @ file:///croot/typing_extensions_1690297580837/work
+tzdata @ file:///croot/python-tzdata_1690578112552/work
+urllib3 @ file:///croot/urllib3_1698258062599/work
+Werkzeug @ file:///croot/werkzeug_1679489787441/work
+yarl @ file:///opt/conda/conda-bld/yarl_1661437086522/work
+zipp @ file:///croot/zipp_1672387128093/work

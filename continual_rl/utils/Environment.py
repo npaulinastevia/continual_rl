@@ -177,7 +177,6 @@ class LTREnv(gym.Env):
             if return_rr:
                 positions = self.df[self.df['cid'].isin(self.picked)]['match'].to_numpy()
                 print(self.picked,self.df[self.df['cid'].isin(self.picked)]['match'].to_numpy())
-                assert False
                 max_position = np.argmax(positions) + 1 if any(positions == 1) else -1
                 return reward, 1.0 / max_position,current_average_precision
             return reward, None,None
@@ -214,6 +213,7 @@ class LTREnv(gym.Env):
     def __get_observation(self):
         # ToDO: This will not be worked
         self.t += 1
+        print('venue icicic')
         report_data, code_data = self.df[
                                      (self.df['cid'] == self.picked[-1]) & (self.df['id'] == self.current_id)].report, \
                                  self.df[
@@ -230,6 +230,7 @@ class LTREnv(gym.Env):
                                                                     truncation=True,
                                                                     padding=True,
                                                                     return_tensors='pt')
+        print(report_token,'report token')
         report_output, code_output = self.model(**report_token.to(self.dev)), self.model(**code_token.to(self.dev))
         report_embedding, code_embedding = self.reduce_dimension_by_mean_pooling(report_output.last_hidden_state,
                                                                                  report_token['attention_mask']), \

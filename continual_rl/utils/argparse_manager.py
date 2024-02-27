@@ -64,8 +64,12 @@ class ArgparseManager(object):
 
         args, extras = argparser.config_mode_parser.parse_known_args(raw_args)
 
+        #if 'config-file' in raw_args:
+        #    args.config_file=raw_args[raw_args.index('config-file')+1]
         # If we successfully parse a config_file, enter config-mode
+
         if args.config_file is not None:
+            #extras=[]
             assert len(extras) == 0, f"Unknown arguments found: {extras}"
             print(f"Entering config mode using file {args.config_file} and output directory {args.output_dir}")
 
@@ -90,6 +94,8 @@ class ArgparseManager(object):
                 raise ArgumentMissingException("--policy required in command-line mode")
 
             # load_next_experiment is expecting a list of experiment configs, so put our experiment in a list
+
+
             experiment, policy = configuration_loader.load_next_experiment_from_dicts(args.output_dir,
                                                                                      [raw_experiment])
 

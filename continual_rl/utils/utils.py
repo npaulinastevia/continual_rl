@@ -54,18 +54,20 @@ class Utils(object):
         seed = None
         make_env_tries = 0
         env = None
+        import config_
         import time
         id_txt = str(int(time.time()))
-        f = open('results_cart_trainCRL_' + env_spec + '.txt', 'a+')
-        f.write('Environments,Algorithms,x1,reward,steps,time,episodes,task_id,done' + '\n')
-        f.close()
-        f = open('results_cart_testCRL_' + env_spec + '.txt', 'a+')
-        f.write('Environments,Algorithms,x1,reward,steps,time,episodes,env_id,task_id,done' + '\n')
-        f.close()
-        train_data_path = r'C:\Users\panou\PycharmProjects\bug_localization\RL_Model\Aspectj.csv'
-        file_path = r'C:\Users\panou\PycharmProjects\continual_rl\LTR'
+        #f = open('results_cart_trainCRL_' + env_spec + '.txt', 'a+')
+        #f.write('Environments,Algorithms,x1,reward,steps,time,episodes,task_id,done' + '\n')
+        #f.close()
+        #f = open('results_cart_testCRL_' + env_spec + '.txt', 'a+')
+        #f.write('Environments,Algorithms,x1,reward,steps,time,episodes,env_id,task_id,done' + '\n')
+        #f.close()
+        train_data_path = config_.train_data_path
+        file_path = config_.file_path
         Path(file_path).mkdir(parents=True, exist_ok=True)
-        project_name = 'AspectJ'
+        project_name = config_.project_name
+        mpath = '/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):
@@ -80,16 +82,16 @@ class Utils(object):
                     elif env_spec=='NSCartPole-v2':
                         env=NSCartPoleV2()
                     elif env_spec=="bug_log1":
-                        env=LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
-                            tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+                        env=LTREnvV2(data_path=train_data_path, model_path=mpath,
+                            tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
                         use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
                     elif env_spec=="bug_log3":
-                        env=LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
-                            tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+                        env=LTREnvV2(data_path=train_data_path, model_path=mpath,
+                            tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
                         use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
                     elif env_spec=="bug_log2":
-                        env=LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
-                            tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
+                        env=LTREnvV2(data_path=train_data_path, model_path=mpath,
+                            tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
                         use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
                     else:
                         env = gym.make(env_spec)
