@@ -236,9 +236,9 @@ class Monobeast():
             signal.signal(signal.SIGTERM, end_task)
 
             while True:
-                print('free_queue', len(buffers['frame']), buffers['frame'][0].shape,env_output['frame'].shape)
-                index = free_queue.get()
 
+                index = free_queue.get()
+                print('free_queue', len(buffers['frame']), buffers['frame'][0].shape, env_output['frame'].shape)
                 if index is None:
                     break
 
@@ -609,7 +609,7 @@ class Monobeast():
             json.dump(metadata, metadata_file)
 
     def load(self, output_path):
-        print('okkk',output_path)
+
         model_file_path = os.path.join(output_path, "model.tar")
         if os.path.exists(model_file_path):
             self.logger.info(f"Loading model from {output_path}")

@@ -208,7 +208,7 @@ class LTREnv(gym.Env):
     def __get_filtered_df(self):
 
         self.filtered_df = self.df[self.df["id"] == self.current_id].reset_index()
-        self.filtered_df = self.filtered_df.sample(frac=1, random_state=self.filtered_df['cid'].sum()).reset_index(
+        self.filtered_df = self.filtered_df.sample(frac=1, random_state=int(self.filtered_df['cid'].sum())).reset_index(
             drop=True)
 
     def __get_observation(self):
@@ -268,13 +268,18 @@ class LTREnvV2(LTREnv):
         return super(LTREnvV2, self).reset()
 
     def _LTREnv__get_observation(self):
-        print('iiiccc271gooooooone')
+        import os
+        print('iiiccc271gooooooone',self.t,len(self.all_embedding) ,self.file_path,self.caching)
         self.t += 1
-
+        ind=0
         if len(self.all_embedding) == 0:
+
             if not self.caching or not Path(
-                    self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).is_file():
+                os.path.join(self.file_path,'.caching',"{}_all_embedding.npy".format(self.current_id))).is_file():
+                    #self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).is_file():
+
                 for row in self.filtered_df.iterrows():
+                    ind+=1
                     report_data, code_data = row[1].report, row[1].file_content
                     report_token, code_token = self.tokenizer.batch_encode_plus([report_data], max_length=self.max_len,
                                                                                 pad_to_multiple_of=self.max_len,
@@ -297,14 +302,17 @@ class LTREnvV2(LTREnv):
                                                            code_token['attention_mask'])
                     final_rep = np.concatenate([report_embedding, code_embedding, [[1e-7]]], axis=1)[0]
                     self.all_embedding.append(final_rep)
+
+
                 if self.caching:
-                    Path(self.file_path + ".caching/").mkdir(parents=True, exist_ok=True)
-                    np.save(self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id),
-                            self.all_embedding)
+
+                    Path(os.path.join(self.file_path,'.caching')).mkdir(parents=True, exist_ok=True)#self.file_path + ".caching/"
+                    np.save(os.path.join(self.file_path,'.caching',"{}_all_embedding.npy".format(self.current_id)),
+                            self.all_embedding)#self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)
 
             else:
-                self.all_embedding = np.load(
-                    self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).tolist()
+                self.all_embedding = np.load(os.path.join(self.file_path,'.caching','{}_all_embedding.npy'.format(self.current_id))).tolist()
+                    #self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).tolist()
         if len(self.picked) > 0:
             action_index = self.filtered_df['cid'].tolist().index(self.picked[-1])
             self.all_embedding[action_index] = np.full_like(self.all_embedding[action_index], 0,
@@ -314,6 +322,7 @@ class LTREnvV2(LTREnv):
         else:
             stacked_rep = np.stack(self.all_embedding)
         self.previous_obs = stacked_rep
+
         return stacked_rep
 
 
