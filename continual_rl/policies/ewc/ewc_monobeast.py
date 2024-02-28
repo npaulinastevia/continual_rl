@@ -78,6 +78,7 @@ class EWCTaskInfo(object):
                     specs[key]["dtype"],
                     permanent_file_name=permanent_file_name,
                 )
+                print(permanent_file_name,permanent_path,key)
                 buffers[key].append(new_tensor.share_memory_())
                 temp_files.append(temp_file)
 
@@ -158,6 +159,7 @@ class EWCMonobeast(Monobeast):
                 "online": EWCTaskInfo(self._model_flags, specs, self._entries_per_buffer, "online")
             }
         else:
+            print(task_ids,"task_ids")
             self._tasks = {
                 id: EWCTaskInfo(self._model_flags, specs, self._entries_per_buffer, f"task_{id}")
                 for id in task_ids

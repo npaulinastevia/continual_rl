@@ -6,7 +6,7 @@ from continual_rl.policies.config_base import ConfigBase
 class ImpalaPolicyConfig(ConfigBase):
     def __init__(self):
         super().__init__()
-        self.num_actors = 4
+        self.num_actors = 2#4
         self.batch_size = 8
         self.unroll_length = 80
         self.num_buffers = None
@@ -38,6 +38,7 @@ class ImpalaPolicyConfig(ConfigBase):
         self.sep_critic_conv_net = False
         self.baseline_extended_arch = False
         self.baseline_includes_uncertainty = False
+
 
         # Does not call eval() on the policy before evaluation,
         # use when you want the same policy to run on the environment in eval as it does in test.

@@ -169,6 +169,7 @@ class TaskBase(ABC):
                     task_spec)
             print(task_spec.eval_mode, 'task_spec.eval_mode')
             for r in range(len(returns_to_report)):
+
                 if not task_spec.eval_mode:
                     f = open(outfile, 'a+')
                     f.write(
@@ -181,13 +182,14 @@ class TaskBase(ABC):
                         str(task_spec.task_id) + ',' + str(str(returns_to_report[r])) + ',' + str(
                             timesteps) + ',' + str(self.episode) + ',' + str(-self.start +time.time()) + '\n')
                     f.close()
-                    f = open(bug_inj, 'w+')
-                    if flags[r][0]:
-                        f.write('BUG1 ')
-                    if flags[r][1]:
-                        f.write('BUG1 ')
-                    f.write('\n')
-                    f.close()
+                    if task_spec.env_spec=='CartPole-v0' or task_spec.env_spec=='NSCartPole-v0' or task_spec.env_spec=='NSCartPole-v1' or task_spec.env_spec=='NSCartPole-v2':
+                        f = open(bug_inj, 'w+')
+                        if flags[r][0]:
+                            f.write('BUG1 ')
+                        if flags[r][1]:
+                            f.write('BUG1 ')
+                        f.write('\n')
+                        f.close()
                 self.episode+=1
                 if self.episode >= config_.episode:
                     break

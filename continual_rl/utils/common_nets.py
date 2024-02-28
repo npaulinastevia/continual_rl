@@ -48,6 +48,8 @@ class CommonConv(nn.Module):
         print(f"Created conv network with total parameters: {Utils.count_trainable_parameters(self)}")
 
     def forward(self, x):
+        if len(x.shape)>2:
+            x=x.view((-1,1,x.shape[-2],x.shape[-1]))
         x = self._conv_net(x.float())
         x = self._post_flatten(x)
         return x

@@ -116,7 +116,7 @@ class Experiment(object):
         total_train_timesteps = run_metadata.total_train_timesteps
 
         timesteps_per_save = policy.config.timesteps_per_save
-
+        policy.config.set_output_dir(self.output_dir)
         for cycle_id in range(start_cycle_id, self._cycle_count):
             for task_run_id, task in enumerate(self.tasks[start_task_id:], start=start_task_id):
                 # Run the current task as a generator so we can intersperse testing tasks during the run

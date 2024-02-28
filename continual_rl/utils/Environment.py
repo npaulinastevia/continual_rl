@@ -60,6 +60,8 @@ class LTREnv(gym.Env):
         self.match_id = None
         self.__get_ids()
         self.counter = 0
+        self.output_path=None
+        self.current_act_id=None
 
     @staticmethod
     def decode(text):
@@ -163,7 +165,7 @@ class LTREnv(gym.Env):
 
             # ------------------************************------------------------
             current_matches = [self.df[self.df['cid'] == item]['match'].tolist()[0] for item in self.picked]
-            print(current_matches,[self.df[self.df['cid'] == item]['match'].tolist() for item in self.picked],)
+
 
             current_average_precision = average_precision(current_matches)
             indices_of_match = np.argwhere(np.array(current_matches) == 1)
@@ -177,7 +179,7 @@ class LTREnv(gym.Env):
                 reward = -np.log2(self.t + 1)
             if return_rr:
                 positions = self.df[self.df['cid'].isin(self.picked)]['match'].to_numpy()
-                print(self.picked,self.df[self.df['cid'].isin(self.picked)]['match'].to_numpy())
+
                 max_position = np.argmax(positions) + 1 if any(positions == 1) else -1
                 return reward, 1.0 / max_position,current_average_precision
             return reward, None,None
@@ -213,7 +215,7 @@ class LTREnv(gym.Env):
 
     def __get_observation(self):
         # ToDO: This will not be worked
-        print('iiiccc216')
+
         self.t += 1
 
         report_data, code_data = self.df[
@@ -269,7 +271,7 @@ class LTREnvV2(LTREnv):
 
     def _LTREnv__get_observation(self):
         import os
-        print('iiiccc271gooooooone',self.t,len(self.all_embedding) ,self.file_path,self.caching)
+
         self.t += 1
         ind=0
         if len(self.all_embedding) == 0:
@@ -309,9 +311,12 @@ class LTREnvV2(LTREnv):
                     Path(os.path.join(self.file_path,'.caching')).mkdir(parents=True, exist_ok=True)#self.file_path + ".caching/"
                     np.save(os.path.join(self.file_path,'.caching',"{}_all_embedding.npy".format(self.current_id)),
                             self.all_embedding)#self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)
+                    print(self.file_path, "2788866666666666")
 
             else:
+
                 self.all_embedding = np.load(os.path.join(self.file_path,'.caching','{}_all_embedding.npy'.format(self.current_id))).tolist()
+
                     #self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).tolist()
         if len(self.picked) > 0:
             action_index = self.filtered_df['cid'].tolist().index(self.picked[-1])

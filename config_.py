@@ -4,6 +4,8 @@ import multiprocessing
 eval_mode=False
 file_path = r'C:\Users\phili\Downloads\10428077\LTR'
 project_name = 'AspectJ'
+num_actors=4
+
 if eval_mode:
     episode=1000
 else:

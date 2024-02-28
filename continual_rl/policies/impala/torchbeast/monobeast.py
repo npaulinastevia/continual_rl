@@ -22,6 +22,8 @@ import timeit
 import traceback
 import typing
 import copy
+from pathlib import Path
+
 import psutil
 import numpy as np
 import queue
@@ -219,6 +221,9 @@ class Monobeast():
             gym_env, seed = Utils.make_env(task_flags.env_spec, create_seed=True)
             self.logger.info(f"Environment and libraries setup with seed {seed}")
 
+            gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
+            Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
+            print(gym_env.file_path,actor_index,"gym_env.file_path")
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
 
@@ -238,14 +243,14 @@ class Monobeast():
             while True:
 
                 index = free_queue.get()
-                print('free_queue', len(buffers['frame']), buffers['frame'][0].shape, env_output['frame'].shape)
+
                 if index is None:
                     break
 
                 # Write old rollout end.
 
                 for key in env_output:
-                    print(key,'keyline243')
+
 
                     buffers[key][index][0, ...] = env_output[key]
                 for key in agent_output:
@@ -261,7 +266,7 @@ class Monobeast():
                         agent_output, agent_state = model(env_output, task_flags.action_space_id, agent_state)
                     timings.time("model")
                     env_output = env.step(agent_output["action"])
-                    print(agent_output, 'env_output')
+
                     timings.time("step")
 
                     for key in env_output:
@@ -284,7 +289,7 @@ class Monobeast():
                                     f"Video logging socket seems to have failed with error {e}. Aborting video log.")
                                 pass
 
-                            self._videos_to_log.put(copy.deepcopy(observations_to_render))
+                            #self._videos_to_log.put(copy.deepcopy(observations_to_render))
                             observations_to_render.clear()
 
                         observations_to_render.append(env_output['frame'].squeeze(0).squeeze(0)[-1])
@@ -913,10 +918,11 @@ class Monobeast():
 
             observation = env.step(policy_outputs["action"])
             step += 1
-            if -0.5 < observation['frame'][0] < -0.45 and not flag_injected_bug_spotted[0]:
-                flag_injected_bug_spotted[0] = True
-            if 0.45 < observation['frame'][0] < 0.5 and not flag_injected_bug_spotted[1]:
-                flag_injected_bug_spotted[1] = True
+            if len(gym_env.reset().shape)==1:
+                if -0.5 < observation['frame'][0] < -0.45 and not flag_injected_bug_spotted[0]:
+                    flag_injected_bug_spotted[0] = True
+                if 0.45 < observation['frame'][0] < 0.5 and not flag_injected_bug_spotted[1]:
+                    flag_injected_bug_spotted[1] = True
             done = observation["done"].item() and not torch.isnan(observation["episode_return"])
 
             # NaN if the done was "fake" (e.g. Atari). We want real scores here so wait for the real return.

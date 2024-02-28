@@ -122,6 +122,8 @@ class ImpalaNet(nn.Module):
                 inputs["last_action"].view(T * B), self.num_actions
             ).float()
             clipped_reward = inputs["reward"].float()
+
+            clipped_reward=clipped_reward.view(-1,1)
             core_input = torch.cat([x, clipped_reward, one_hot_last_action], dim=-1)
 
             if self.use_lstm:

@@ -19,6 +19,9 @@ from .nscartpole_v1 import NSCartPoleV1
 class Utils(object):
 
     @classmethod
+    def output_path_and_act_id(cls,output_path,act_id):
+        return output_path,act_id
+    @classmethod
     def create_logger(cls, file_path):
         """
         The path must be unique to the logger you're creating, otherwise you're grabbing an existing logger.
