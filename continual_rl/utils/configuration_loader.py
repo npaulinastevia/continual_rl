@@ -64,6 +64,7 @@ class ConfigurationLoader(object):
         experiment.set_output_dir(experiment_output_dir)
         policy_config.set_output_dir(experiment_output_dir)
 
+
         # Pass the config to the policy - assumes the initialization signature of all policies is simply
         # PolicyType(PolicyConfig)
         policy = policy_class(policy_config, experiment.observation_space, experiment.action_spaces)

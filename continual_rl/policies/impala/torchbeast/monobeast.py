@@ -218,11 +218,12 @@ class Monobeast():
             self.logger.info("Actor %i started.", actor_index)
             timings = prof.Timings()  # Keep track of how fast things are.
 
-            gym_env, seed = Utils.make_env(task_flags.env_spec, create_seed=True)
+            gym_env, seed = Utils.make_env(task_flags.env_spec)#create_seed=True
             self.logger.info(f"Environment and libraries setup with seed {seed}")
 
             gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
             Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
+            assert False
             print(gym_env.file_path,actor_index,"gym_env.file_path")
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
@@ -289,7 +290,7 @@ class Monobeast():
                                     f"Video logging socket seems to have failed with error {e}. Aborting video log.")
                                 pass
 
-                            #self._videos_to_log.put(copy.deepcopy(observations_to_render))
+                            self._videos_to_log.put(copy.deepcopy(observations_to_render))
                             observations_to_render.clear()
 
                         observations_to_render.append(env_output['frame'].squeeze(0).squeeze(0)[-1])
@@ -652,9 +653,9 @@ class Monobeast():
         T = self._model_flags.unroll_length
         B = self._model_flags.batch_size
 
-        #def lr_lambda(epoch):
+        def lr_lambda(epoch):
 
-        #    return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
+            return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
         self._model_flags.use_scheduler=False
         if self._model_flags.use_scheduler:
@@ -670,6 +671,7 @@ class Monobeast():
 
         # Add initial RNN state.
         initial_agent_state_buffers = []
+
         for _ in range(self._model_flags.num_buffers):
             state = self.actor_model.initial_state(batch_size=1)
             for t in state:

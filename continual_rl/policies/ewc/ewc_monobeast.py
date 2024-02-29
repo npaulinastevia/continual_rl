@@ -20,12 +20,14 @@ class EWCTaskInfo(object):
         # (ie. Windows has max path length of 260 characters)
         # Could hash output_dir_str if this is a problem.
         output_dir_str = os.path.normpath(model_flags.output_dir).replace(os.path.sep, '-')
-        permanent_path = os.path.join(
-            model_flags.large_file_path,
+
+        permanent_path = os.path.join(os.getcwd(),
+            model_flags.output_dir,  #model_flags.large_file_path,
             "file_backed",
             output_dir_str,
             task_name,
         )
+
         buffers_existed = os.path.exists(permanent_path)
         os.makedirs(permanent_path, exist_ok=True)
 
@@ -78,7 +80,6 @@ class EWCTaskInfo(object):
                     specs[key]["dtype"],
                     permanent_file_name=permanent_file_name,
                 )
-                print(permanent_file_name,permanent_path,key)
                 buffers[key].append(new_tensor.share_memory_())
                 temp_files.append(temp_file)
 

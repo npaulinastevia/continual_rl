@@ -18,9 +18,7 @@ from .nscartpole_v1 import NSCartPoleV1
 
 class Utils(object):
 
-    @classmethod
-    def output_path_and_act_id(cls,output_path,act_id):
-        return output_path,act_id
+
     @classmethod
     def create_logger(cls, file_path):
         """
@@ -70,7 +68,9 @@ class Utils(object):
         file_path = config_.file_path
         Path(file_path).mkdir(parents=True, exist_ok=True)
         project_name = config_.project_name
-        mpath = 'microsoft/codebert-base'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
+        print(file_path)
+        mpath = '/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
+        print(file_path,train_data_path,env_spec,"envvvfd")
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):
@@ -88,6 +88,7 @@ class Utils(object):
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
                         use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                        assert False
                     elif env_spec=="bug_log3":
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,

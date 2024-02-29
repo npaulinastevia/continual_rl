@@ -50,6 +50,7 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
             num_episodes = num_episodes if num_episodes is not None else 10  # Collect 10 episodes at a time
             result_generator = self._policy.impala_trainer.test(task_flags, num_episodes=num_episodes)
         else:
+
             result_generator = self._policy.impala_trainer.train(task_flags)
 
         return result_generator

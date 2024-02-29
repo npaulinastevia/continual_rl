@@ -42,6 +42,7 @@ class Environment:
             initial_frame=torch.from_numpy(self.gym_env.reset())
         elif len(self.gym_env.reset().shape)==2:
             initial_frame=torch.from_numpy(self.gym_env.reset())
+            initial_frame=initial_frame[0:7,0:7]
             initial_frame= initial_frame.unsqueeze(0)
             initial_frame = initial_frame.unsqueeze(0)
         else:
@@ -78,6 +79,7 @@ class Environment:
             frame=torch.from_numpy(frame)
         elif len(frame.shape)==2:
             frame = torch.from_numpy(frame)
+            frame = frame[0:7, 0:7]
             frame=frame.unsqueeze(0)
             frame = frame.unsqueeze(0)
         else:

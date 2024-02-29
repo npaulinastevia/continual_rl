@@ -6,7 +6,7 @@ from continual_rl.policies.config_base import ConfigBase
 class ImpalaPolicyConfig(ConfigBase):
     def __init__(self):
         super().__init__()
-        self.num_actors = 2#4
+        self.num_actors = 1#4
         self.batch_size = 8
         self.unroll_length = 80
         self.num_buffers = None

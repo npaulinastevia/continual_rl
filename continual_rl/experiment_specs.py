@@ -261,7 +261,19 @@ def get_available_experiments():
             "bug_loc_multiple",
             ["bug_log1",
             "bug_log2",
-             "bug_log3"
+           #  "bug_log3"
+             ],
+            max_episode_steps=10000,
+            num_timesteps=5e7,
+            full_action_space=True,
+            continual_testing_freq=0.25e6,
+            cycle_count=5,
+        ),
+        "cart_multiple": create_atari_sequence_loader(
+            "cart_multiple",
+            ["CartPole-v0",
+              "NSCartPole-v0",
+             #  "bug_log3"
              ],
             max_episode_steps=10000,
             num_timesteps=5e7,

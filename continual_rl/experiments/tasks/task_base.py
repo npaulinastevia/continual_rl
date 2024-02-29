@@ -3,7 +3,7 @@ import numpy as np
 from continual_rl.experiments.tasks.task_spec import TaskSpec
 from continual_rl.utils.utils import Utils
 import os
-
+from torch.utils.tensorboard.writer import SummaryWriter
 class TaskBase(ABC):
     ALL_TASK_IDS = set()
 
@@ -55,6 +55,7 @@ class TaskBase(ABC):
                                                   num_timesteps=100000, eval_mode=True,
                                                   return_after_episode_num=continual_eval_num_returns)
 
+
     @classmethod
     def _verify_and_save_task_id(cls, task_id):
         assert task_id not in cls.ALL_TASK_IDS, f"Task with task id {task_id} failed to be created due to task id already in use. Use a different id."
@@ -67,13 +68,13 @@ class TaskBase(ABC):
         timestep = log.get("timestep", None) or default_timestep
 
         if type == "video":
-            summary_writer.add_video(tag, value, global_step=timestep)
+            SummaryWriter(summary_writer).add_video(tag, value, global_step=timestep)
         elif type == "scalar":
-            summary_writer.add_scalar(tag, value, global_step=timestep)
+            SummaryWriter(summary_writer).add_scalar(tag, value, global_step=timestep)
         elif type == "image":
-            summary_writer.add_image(tag, value, global_step=timestep)
+            SummaryWriter(summary_writer).add_image(tag, value, global_step=timestep)
 
-        summary_writer.flush()
+        SummaryWriter(summary_writer).flush()
 
     def logger(self, output_dir):
         logger = Utils.create_logger(f"{output_dir}/core_process.log")

@@ -39,6 +39,7 @@ class Experiment(object):
         self._continual_testing_freq = continual_testing_freq
         self._cycle_count = cycle_count
 
+
     def set_output_dir(self, output_dir):
         self._output_dir = output_dir
 
