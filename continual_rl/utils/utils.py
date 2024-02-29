@@ -69,7 +69,7 @@ class Utils(object):
         Path(file_path).mkdir(parents=True, exist_ok=True)
         project_name = config_.project_name
         print(file_path)
-        mpath = '/scratch/f/foutsekh/nstevia/bug_localization/micro_codebert'#'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
+        mpath ='/scratch/nstevia/bug_localization/micro_codebert'# '/scratch/f/foutsekh/nstevia/bug_localization/micro_codebert'#'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
         print(file_path,train_data_path,env_spec,"envvvfd")
         while env is None:
             try:

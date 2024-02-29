@@ -13,7 +13,7 @@ class BuglogPreprocessor(PreprocessorBase):
         self.env_spec = self._wrap_env(env_spec, time_batch_size)
         #dummy_env, _ = Utils.make_env(self.env_spec)
         observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(4, ), dtype=np.float32)
+                                            shape=(7,7 ), dtype=np.float32)
         super().__init__(observation_space)
 
     def _wrap_env(self, env_spec, time_batch_size):

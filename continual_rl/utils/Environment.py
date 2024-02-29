@@ -273,7 +273,7 @@ class LTREnvV2(LTREnv):
                                        max_len=max_len, use_gpu=use_gpu, file_path=file_path, project_list=project_list,
                                        test_env=test_env, estimate=estimate)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(4,), dtype=np.float32)#shape=(31, 1025)
+                                            shape=(7,7), dtype=np.float32)#shape=(31, 1025)
         self.all_embedding = []
         self.caching = caching
 
