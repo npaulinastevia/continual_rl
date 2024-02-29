@@ -219,11 +219,12 @@ class Monobeast():
             timings = prof.Timings()  # Keep track of how fast things are.
 
             gym_env, seed = Utils.make_env(task_flags.env_spec)#create_seed=True
+
             self.logger.info(f"Environment and libraries setup with seed {seed}")
 
             gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
             Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
-            assert False
+
             print(gym_env.file_path,actor_index,"gym_env.file_path")
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
@@ -680,7 +681,7 @@ class Monobeast():
 
         # Setup actor processes and kick them offset
         self._actor_processes = []
-        ctx = mp.get_context("spawn") #mp.get_context("fork")
+        ctx = mp.get_context("fork") #mp.get_context("fork")
 
         # See: https://stackoverflow.com/questions/47085458/why-is-multiprocessing-queue-get-so-slow for why Manager
         self.free_queue = py_mp.Manager().Queue()

@@ -273,7 +273,7 @@ class LTREnvV2(LTREnv):
                                        max_len=max_len, use_gpu=use_gpu, file_path=file_path, project_list=project_list,
                                        test_env=test_env, estimate=estimate)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(7, 7), dtype=np.float32)#shape=(31, 1025)
+                                            shape=(4,), dtype=np.float32)#shape=(31, 1025)
         self.all_embedding = []
         self.caching = caching
 
@@ -288,7 +288,7 @@ class LTREnvV2(LTREnv):
         self.t += 1
         ind = 0
         if len(self.all_embedding) == 0:
-
+      
             if not self.caching or not Path(
                     os.path.join(self.file_path, '.caching', "{}_all_embedding.npy".format(self.current_id))).is_file():
                 # self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).is_file():

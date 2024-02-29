@@ -53,6 +53,7 @@ class EWCTaskInfo(object):
             self.replay_buffer_counters.zero_()
 
         # Main-process only variables
+
         self.ewc_regularization_terms = None
 
     def _create_replay_buffers(self, model_flags, specs, entries_per_buffer, permanent_path):
@@ -229,6 +230,7 @@ class EWCMonobeast(Monobeast):
 
     def checkpoint_task(self, task_id, task_flags, model, online=False):
         # save model weights for task (MAP estimate)
+
         task_params = {}
         for n, p in model.named_parameters():
             task_params[n] = p.detach().clone()
@@ -288,6 +290,7 @@ class EWCMonobeast(Monobeast):
 
     def on_act_unroll_complete(self, task_flags, actor_index, agent_output, env_output, new_buffers):
         if not self._collection_paused:
+
             task_info = self._get_task(task_flags.task_id)
 
             # update the tasks's total_steps
@@ -313,6 +316,7 @@ class EWCMonobeast(Monobeast):
 
         # Select a random actor, and from that, a random buffer entry.
         for _ in range(replay_entry_count):
+
             actor_index = random_state.randint(0, self._model_flags.num_actors)
 
             # We may not have anything in this buffer yet, so check for that (randint complains)

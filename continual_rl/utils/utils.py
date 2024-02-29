@@ -69,7 +69,7 @@ class Utils(object):
         Path(file_path).mkdir(parents=True, exist_ok=True)
         project_name = config_.project_name
         print(file_path)
-        mpath = '/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
+        mpath = '/scratch/f/foutsekh/nstevia/bug_localization/micro_codebert'#'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
         print(file_path,train_data_path,env_spec,"envvvfd")
         while env is None:
             try:
@@ -78,8 +78,10 @@ class Utils(object):
                 else:
                     if env_spec=='CartPole-v0':
                         env=CartPoleEnv()
+
                     elif env_spec=='NSCartPole-v0':
                         env=NSCartPoleV0()
+
                     elif env_spec=='NSCartPole-v1':
                         env=NSCartPoleV1()
                     elif env_spec=='NSCartPole-v2':
@@ -88,7 +90,6 @@ class Utils(object):
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
                         use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
-                        assert False
                     elif env_spec=="bug_log3":
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
