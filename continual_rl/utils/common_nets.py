@@ -8,6 +8,7 @@ def get_network_for_size(size, output_shape=None, **kwargs):
     Size is expected to be [channel, dim, dim]
     """
     size = list(size)  # In case the input is a tuple
+    print(size)
     if size[-2:] == [7, 7]:
         net = ConvNet7x7
     elif size[-2:] == [28, 28]:
@@ -18,6 +19,8 @@ def get_network_for_size(size, output_shape=None, **kwargs):
         # just use 84x84, it should compute output dim
         net = ConvNet84x84
     elif size[-2:]==[31,1025]:
+        net = ConvNet28x28
+    elif size[-2:]==[31,100]:
         net = ConvNet28x28
     elif size[-2:] == [2, 2]:
         net = ConvNet7x7
@@ -34,6 +37,7 @@ class ModelUtils(object):
     @classmethod
     def compute_output_shape(cls, net, observation_size):
         dummy_input = torch.zeros(observation_size).unsqueeze(0)  # Observation size doesn't include batch, so add it
+        print(dummy_input.shape,'dummmmmmy')
         dummy_output = net(dummy_input).squeeze(0)  # Remove batch
         output_shape = dummy_output.shape
         return output_shape

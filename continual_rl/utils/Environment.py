@@ -26,17 +26,20 @@ def average_precision(r):
     if not out:
         return 0.
     return np.mean(out)
-
-
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 class LTREnv(gym.Env):
     def __init__(self, data_path, model_path, tokenizer_path, action_space_dim, report_count, max_len=512, use_gpu=True,
                  file_path="", project_list=None, test_env=False, estimate=False):
         super(LTREnv, self).__init__()
+
         if use_gpu:
             self.dev = "cuda:0" if torch.cuda.is_available() else "cpu"
         else:
             self.dev = "cpu"
         self.current_file = None
+
+
         self.file_path = file_path
         self.test_env = test_env
         self.current_id = None
@@ -45,10 +48,14 @@ class LTREnv(gym.Env):
         self.filtered_df = None  # done
         self.max_len = max_len
         self.project_list = project_list
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model = AutoModel.from_pretrained(tokenizer_path).to(self.dev)
+        self.model_path=model_path
+        #self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+        #self.model = AutoModel.from_pretrained(tokenizer_path)#.to(self.dev)
         # self.model.save_pretrained('/home/paulina/Downloads/micro_codebert')
         # self.tokenizer.save_pretrained('/home/paulina/Downloads/micro_codebert')
+
+
         self.data_path = data_path
         self.action_space_dim = action_space_dim
         self.action_space = spaces.Discrete(self.action_space_dim)
@@ -64,10 +71,12 @@ class LTREnv(gym.Env):
         self.t = 0
         self.suppoerted_len = None
         self.match_id = None
+
         self.__get_ids()
         self.counter = 0
         self.output_path = None
         self.current_act_id = None
+
 
     @staticmethod
     def decode(text):
@@ -118,6 +127,7 @@ class LTREnv(gym.Env):
             not_matched = pd.DataFrame(columns=matched.columns)
             match_counter = matched.groupby('id')['cid'].count()
             for row in match_counter.iteritems():
+                print('icicic')
                 temp = self.df[(self.df['match'] != 1) & (self.df['id'] == row[0])].sample(frac=1).reset_index(
                     drop=True).head(self.action_space_dim - row[1])
 
@@ -268,14 +278,17 @@ class LTREnv(gym.Env):
 
 class LTREnvV2(LTREnv):
     def __init__(self, data_path, model_path, tokenizer_path, action_space_dim, report_count, max_len=512, use_gpu=True,
-                 caching=False, file_path="", project_list=None, test_env=False, estimate=False):
+                 caching=False, file_path="", project_list=None, test_env=False, estimate=False,model_flags=None):
         super(LTREnvV2, self).__init__(data_path, model_path, tokenizer_path, action_space_dim, report_count,
                                        max_len=max_len, use_gpu=use_gpu, file_path=file_path, project_list=project_list,
                                        test_env=test_env, estimate=estimate)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-                                            shape=(7,7), dtype=np.float32)#shape=(31, 1025)
+                                            shape=(31,1025), dtype=np.float32)#shape=(31, 1025)
         self.all_embedding = []
         self.caching = caching
+        self.tokenizer = model_flags.autoT#AutoTokenizer.from_pretrained(self.model_path, use_fast=False)
+
+        self.model = model_flags.autoM#AutoModel.from_pretrained(self.model_path).to(self.dev)
 
     def reset(self):
         self.all_embedding = []
@@ -287,14 +300,19 @@ class LTREnvV2(LTREnv):
 
         self.t += 1
         ind = 0
+        import os
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+
         if len(self.all_embedding) == 0:
-      
+
             if not self.caching or not Path(
                     os.path.join(self.file_path, '.caching', "{}_all_embedding.npy".format(self.current_id))).is_file():
                 # self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).is_file():
 
                 for row in self.filtered_df.iterrows():
                     ind += 1
+
                     report_data, code_data = row[1].report, row[1].file_content
                     report_token, code_token = self.tokenizer.batch_encode_plus([report_data], max_length=self.max_len,
                                                                                 pad_to_multiple_of=self.max_len,
@@ -307,8 +325,9 @@ class LTREnvV2(LTREnv):
                                                          truncation=True,
                                                          padding=True,
                                                          return_tensors='pt')
-                    report_output, code_output = self.model(**report_token.to(self.dev)), self.model(
-                        **code_token.to(self.dev))
+                    print(ind,'inddddd')
+                    report_output, code_output = self.model(**report_token), self.model(
+                        **code_token)
                     report_embedding, code_embedding = self.reduce_dimension_by_mean_pooling(
                         report_output.last_hidden_state,
                         report_token['attention_mask']), \
@@ -319,7 +338,7 @@ class LTREnvV2(LTREnv):
                     self.all_embedding.append(final_rep)
 
                 if self.caching:
-                    print(self.file_path,)
+
                     Path(os.path.join(self.file_path, '.caching')).mkdir(parents=True,
                                                                          exist_ok=True)  # self.file_path + ".caching/"
                     np.save(os.path.join(self.file_path, '.caching', "{}_all_embedding.npy".format(self.current_id)),
@@ -340,6 +359,8 @@ class LTREnvV2(LTREnv):
             stacked_rep[action_index, -1] = self.t
         else:
             stacked_rep = np.stack(self.all_embedding)
+
+        print(stacked_rep.shape,'stacked_rep')
         self.previous_obs = stacked_rep
 
         return stacked_rep
@@ -369,19 +390,19 @@ class LTREnvV3(LTREnv):
                     self.file_path + ".caching/{}_all_embedding.npy".format(self.current_id)).is_file():
                 for row in self.filtered_df.iterrows():
                     report_data, code_data = row[1].report, row[1].file_content
-                    report_token, code_token = self.tokenizer.batch_encode_plus([report_data], max_length=self.max_len,
+                    report_token, code_token = tokenizer.batch_encode_plus([report_data], max_length=self.max_len,
                                                                                 pad_to_multiple_of=self.max_len,
                                                                                 truncation=True,
                                                                                 padding=True,
                                                                                 return_tensors='pt'), \
-                        self.tokenizer.batch_encode_plus([self.decode(code_data)],
+                        tokenizer.batch_encode_plus([self.decode(code_data)],
                                                          max_length=self.max_len,
                                                          pad_to_multiple_of=self.max_len,
                                                          truncation=True,
                                                          padding=True,
                                                          return_tensors='pt')
                     with torch.no_grad():
-                        report_output, code_output = self.model(**report_token.to(self.dev)), self.model(
+                        report_output, code_output = model(**report_token.to(self.dev)), model(
                             **code_token.to(self.dev))
 
                     final_rep = np.concatenate([report_output.last_hidden_state, code_output.last_hidden_state], axis=2)

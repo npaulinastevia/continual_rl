@@ -32,7 +32,7 @@ class ClearMonobeast(Monobeast):
         # Could hash output_dir_str if this is a problem.
         output_dir_str = os.path.normpath(model_flags.output_dir).replace(os.path.sep, '-')
         permanent_path = os.path.join(
-            model_flags.large_file_path,
+            model_flags.output_dir,
             "file_backed",
             output_dir_str,
             f"{model_flags.policy_unique_id}"

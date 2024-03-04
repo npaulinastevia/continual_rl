@@ -33,7 +33,7 @@ import threading
 import json
 import shutil
 import signal
-
+import multiprocessing
 import torch
 import multiprocessing as py_mp
 from torch import multiprocessing as mp
@@ -44,8 +44,9 @@ from continual_rl.policies.impala.torchbeast.core import environment
 from continual_rl.policies.impala.torchbeast.core import prof
 from continual_rl.policies.impala.torchbeast.core import vtrace
 from continual_rl.utils.utils import Utils
-
-
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+from transformers import AutoModel, AutoTokenizer
 Buffers = typing.Dict[str, typing.List[torch.Tensor]]
 
 
@@ -58,7 +59,7 @@ class LearnerThreadState():
         setting state is atomic enough to not require further thread safety.
         """
         self.state = self.STARTING
-        self.lock = threading.Lock()
+        self.lock =  threading.Lock()
 
     def wait_for(self, desired_state_list, timeout=300):
         time_passed = 0
@@ -156,6 +157,7 @@ class Monobeast():
             raise ValueError("num_buffers should be larger than batch_size")
 
         # Convert the device string into an actual device
+
         model_flags.device = torch.device(model_flags.device)
 
         model = policy_class(observation_space, action_spaces, model_flags)
@@ -218,14 +220,15 @@ class Monobeast():
             self.logger.info("Actor %i started.", actor_index)
             timings = prof.Timings()  # Keep track of how fast things are.
 
-            gym_env, seed = Utils.make_env(task_flags.env_spec)#create_seed=True
+            gym_env, seed = Utils.make_env(task_flags['env_spec'],create_seed=True,model_flags=model_flags)#create_seed=True
 
-            self.logger.info(f"Environment and libraries setup with seed {seed}")
+            #self.logger.info(f"Environment and libraries setup with seed {seed}")
 
             gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
             Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
 
             print(gym_env.file_path,actor_index,"gym_env.file_path")
+
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
 
@@ -234,7 +237,8 @@ class Monobeast():
             env_output = env.initial()
 
             agent_state = model.initial_state(batch_size=1)
-            agent_output, unused_state = model(env_output, task_flags.action_space_id, agent_state)
+
+            agent_output, unused_state = model(env_output, task_flags['action_space_id'], agent_state)
 
             # Make sure to kill the env cleanly if a terminate signal is passed. (Will not go through the finally)
             def end_task(*args):
@@ -257,15 +261,15 @@ class Monobeast():
                     buffers[key][index][0, ...] = env_output[key]
                 for key in agent_output:
                     buffers[key][index][0, ...] = agent_output[key]
-                for i, tensor in enumerate(agent_state):
-                    initial_agent_state_buffers[index][i][...] = tensor
+                #for i, tensor in enumerate(agent_state):
+                 #   initial_agent_state_buffers[index][i][...] = tensor
 
                 # Do new rollout.
                 for t in range(model_flags.unroll_length):
                     timings.reset()
 
                     with torch.no_grad():
-                        agent_output, agent_state = model(env_output, task_flags.action_space_id, agent_state)
+                        agent_output, agent_state = model(env_output, task_flags['action_space_id'], agent_state)
                     timings.time("model")
                     env_output = env.step(agent_output["action"])
 
@@ -281,7 +285,8 @@ class Monobeast():
                         if env_output['done'].squeeze():
                             # If we have a video in there, replace it with this new one
                             try:
-                                self._videos_to_log.get(timeout=1)
+                                pass
+                                #self._videos_to_log.get(timeout=1)
                             except queue.Empty:
                                 pass
                             except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
@@ -291,10 +296,10 @@ class Monobeast():
                                     f"Video logging socket seems to have failed with error {e}. Aborting video log.")
                                 pass
 
-                            self._videos_to_log.put(copy.deepcopy(observations_to_render))
-                            observations_to_render.clear()
+                            #self._videos_to_log.put(copy.deepcopy(observations_to_render))
+                            #observations_to_render.clear()
 
-                        observations_to_render.append(env_output['frame'].squeeze(0).squeeze(0)[-1])
+                        #observations_to_render.append(env_output['frame'].squeeze(0).squeeze(0)[-1])
 
                     timings.time("write")
 
@@ -303,7 +308,8 @@ class Monobeast():
                 full_queue.put(index)
 
             if actor_index == 0:
-                self.logger.info("Actor %i: %s", actor_index, timings.summary())
+                pass
+                #self.logger.info("Actor %i: %s", actor_index, timings.summary())
 
         except KeyboardInterrupt:
             pass  # Return silently.
@@ -334,19 +340,19 @@ class Monobeast():
         batch = {
             key: torch.stack([buffers[key][m] for m in indices], dim=1) for key in buffers
         }
-        initial_agent_state = (
-            torch.cat(ts, dim=1)
-            for ts in zip(*[initial_agent_state_buffers[m] for m in indices])
-        )
+        #initial_agent_state = (
+        #    torch.cat(ts, dim=1)
+         #   for ts in zip(*[initial_agent_state_buffers[m] for m in indices])
+        #)
         timings.time("batch")
         for m in indices:
             free_queue.put(m)
         timings.time("enqueue")
 
         batch = {k: t.to(device=flags.device, non_blocking=True) for k, t in batch.items()}
-        initial_agent_state = tuple(
-            t.to(device=flags.device, non_blocking=True) for t in initial_agent_state
-        )
+        #initial_agent_state = tuple(
+         #   t.to(device=flags.device, non_blocking=True) for t in initial_agent_state
+       # )
         timings.time("device")
         return batch, initial_agent_state
 
@@ -658,7 +664,9 @@ class Monobeast():
 
             return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
-        self._model_flags.use_scheduler=False
+        #self._model_flags.use_scheduler=False
+        self._model_flags.autoT=AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert', use_fast=False)
+        self._model_flags.autoM=AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert').to(device=self._model_flags.device)
         if self._model_flags.use_scheduler:
 
             self._scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
@@ -675,9 +683,9 @@ class Monobeast():
 
         for _ in range(self._model_flags.num_buffers):
             state = self.actor_model.initial_state(batch_size=1)
-            for t in state:
-                t.share_memory_()
-            initial_agent_state_buffers.append(state)
+            #for t in state:
+            #    t.share_memory_()
+            #initial_agent_state_buffers.append(state)
 
         # Setup actor processes and kick them offset
         self._actor_processes = []
@@ -687,12 +695,16 @@ class Monobeast():
         self.free_queue = py_mp.Manager().Queue()
         self.full_queue = py_mp.Manager().Queue()
 
+
+        initial_agent_state_buffers=0
+        print(task_flags)
         for i in range(self._model_flags.num_actors):
+            tt={'action_space_id':task_flags.task_flags,'env_spec':task_flags.env_spec}
             actor = ctx.Process(
                 target=self.act,
                 args=(
                     self._model_flags,
-                    task_flags,
+                    tt,
                     i,
                     self.free_queue,
                     self.full_queue,
@@ -821,7 +833,7 @@ class Monobeast():
                 stats_to_return["step_delta"] = step - self.last_timestep_returned
 
                 try:
-                    video = self._videos_to_log.get(block=False)
+                    video = None#self._videos_to_log.get(block=False)
                     stats_to_return["video"] = video
                 except queue.Empty:
                     pass

@@ -3,7 +3,7 @@ import numpy as np
 from continual_rl.experiments.tasks.task_spec import TaskSpec
 from continual_rl.utils.utils import Utils
 import os
-from torch.utils.tensorboard.writer import SummaryWriter
+#from torch.utils.tensorboard.writer import SummaryWriter
 class TaskBase(ABC):
     ALL_TASK_IDS = set()
 

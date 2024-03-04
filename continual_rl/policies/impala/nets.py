@@ -114,7 +114,7 @@ class ImpalaNet(nn.Module):
             #x = torch.flatten(x, 0, 1)  # Merge time and batch.
             #x = torch.flatten(x, 1, 2)  # Merge stacked frames and channels.
             #x = x.float() / self._observation_space.high.max()
-
+            print(x.shape,'shahshhs')
             x = self._conv_net(x)
 
             x = F.relu(x)

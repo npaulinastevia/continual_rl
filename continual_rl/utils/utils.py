@@ -40,7 +40,7 @@ class Utils(object):
         return logger
 
     @classmethod
-    def make_env(cls, env_spec, create_seed=False, seed_to_set=None, max_tries=2):
+    def make_env(cls, env_spec, create_seed=False, seed_to_set=None, max_tries=2,model_flags=None):
         """
         Seeding is done at the time of environment creation partially to make sure that every env gets its own seed.
         If you seed before forking processes, the processes will all be seeded the same way, which is generally
@@ -68,7 +68,7 @@ class Utils(object):
         file_path = config_.file_path
         Path(file_path).mkdir(parents=True, exist_ok=True)
         project_name = config_.project_name
-        print(file_path)
+
         mpath ='/scratch/nstevia/bug_localization/micro_codebert'# '/scratch/f/foutsekh/nstevia/bug_localization/micro_codebert'#'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
         print(file_path,train_data_path,env_spec,"envvvfd")
         while env is None:
@@ -89,15 +89,15 @@ class Utils(object):
                     elif env_spec=="bug_log1":
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
-                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                        use_gpu=True, caching=True, file_path=file_path, project_list=[project_name],model_flags=model_flags)
                     elif env_spec=="bug_log3":
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
-                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                        use_gpu=True, caching=True, file_path=file_path, project_list=[project_name],model_flags=model_flags)
                     elif env_spec=="bug_log2":
                         env=LTREnvV2(data_path=train_data_path, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
-                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                        use_gpu=True, caching=True, file_path=file_path, project_list=[project_name],model_flags=model_flags)
                     else:
                         env = gym.make(env_spec)
             except Exception as e:

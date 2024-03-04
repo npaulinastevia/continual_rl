@@ -6,10 +6,10 @@ class ClearPolicyConfig(ImpalaPolicyConfig):
 
     def __init__(self):
         super().__init__()
-        self.num_actors = 8  # Must be at least as large as batch_size * batch_replay_ratio
-        self.batch_size = 8
+        self.num_actors = 1#8  # Must be at least as large as batch_size * batch_replay_ratio
+        self.batch_size = 1#8
 
-        self.replay_buffer_frames = 1e8
+        self.replay_buffer_frames = 10000#1e8
 
         # The number of replay entries added to the batch = batch_replay_ratio * batch_size
         # CLEAR reports using a 50-50 mixture of novel and replay experiences

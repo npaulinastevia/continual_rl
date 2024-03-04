@@ -7,8 +7,8 @@ class EWCPolicyConfig(ImpalaPolicyConfig):
     def __init__(self):
         super().__init__()
         # following parameters specified by Progress&Compress, see appendix C.2
-        self.batch_size = 20
-        self.unroll_length = 20
+        self.batch_size =2# 20
+        self.unroll_length =2# 20
         self.epsilon = 0.1  # RMSProp epsilon
         self.learning_rate = 0.0006
         self.entropy_cost = 0.01
@@ -16,7 +16,7 @@ class EWCPolicyConfig(ImpalaPolicyConfig):
         self.baseline_cost = 0.5
         self.discounting = 0.99
 
-        self.replay_buffer_frames = int(1e6)  # save a buffer per task for computing Fisher estimates
+        self.replay_buffer_frames = 1000#int(1e6)  # save a buffer per task for computing Fisher estimates
         self.large_file_path = str(self._output_dir)  # No default, since it can be very large and we want no surprises
 
         self.n_fisher_samples = 100  # num of batches to draw to recompute the diagonal of the Fisher
