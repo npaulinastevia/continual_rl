@@ -27,7 +27,7 @@ def average_precision(r):
         return 0.
     return np.mean(out)
 import os
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+#os.environ["TOKENIZERS_PARALLELISM"] = "false"
 class LTREnv(gym.Env):
     def __init__(self, data_path, model_path, tokenizer_path, action_space_dim, report_count, max_len=512, use_gpu=True,
                  file_path="", project_list=None, test_env=False, estimate=False):
@@ -49,9 +49,9 @@ class LTREnv(gym.Env):
         self.max_len = max_len
         self.project_list = project_list
         self.model_path=model_path
-        #self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-        #self.model = AutoModel.from_pretrained(tokenizer_path)#.to(self.dev)
+        self.model = AutoModel.from_pretrained(tokenizer_path)#.to(self.dev)
         # self.model.save_pretrained('/home/paulina/Downloads/micro_codebert')
         # self.tokenizer.save_pretrained('/home/paulina/Downloads/micro_codebert')
 
@@ -76,6 +76,8 @@ class LTREnv(gym.Env):
         self.counter = 0
         self.output_path = None
         self.current_act_id = None
+        #########added#############
+
 
 
     @staticmethod
@@ -286,9 +288,10 @@ class LTREnvV2(LTREnv):
                                             shape=(31,1025), dtype=np.float32)#shape=(31, 1025)
         self.all_embedding = []
         self.caching = caching
-        self.tokenizer = model_flags.autoT#AutoTokenizer.from_pretrained(self.model_path, use_fast=False)
+        self.model_flags=model_flags
+        #self.tokenizer = model_flags.autoT#AutoTokenizer.from_pretrained(self.model_path, use_fast=False)
 
-        self.model = model_flags.autoM#AutoModel.from_pretrained(self.model_path).to(self.dev)
+        #self.model = model_flags.autoM#AutoModel.from_pretrained(self.model_path).to(self.dev)
 
     def reset(self):
         self.all_embedding = []
@@ -301,7 +304,8 @@ class LTREnvV2(LTREnv):
         self.t += 1
         ind = 0
         import os
-        os.environ["TOKENIZERS_PARALLELISM"] = "false"
+        #os.environ["TOKENIZERS_PARALLELISM"] = "false"
+        #os.environ['CUDA_LAUNCH_BLOCKING']='1'
 
 
         if len(self.all_embedding) == 0:
@@ -325,15 +329,18 @@ class LTREnvV2(LTREnv):
                                                          truncation=True,
                                                          padding=True,
                                                          return_tensors='pt')
-                    print(ind,'inddddd')
-                    report_output, code_output = self.model(**report_token), self.model(
-                        **code_token)
+
+                    report_output  = self.model(**report_token.to(self.dev))
+
+                    code_output= self.model(**code_token.to(self.dev))
+
                     report_embedding, code_embedding = self.reduce_dimension_by_mean_pooling(
                         report_output.last_hidden_state,
                         report_token['attention_mask']), \
                         self.reduce_dimension_by_mean_pooling(
                             code_output.last_hidden_state,
                             code_token['attention_mask'])
+
                     final_rep = np.concatenate([report_embedding, code_embedding, [[1e-7]]], axis=1)[0]
                     self.all_embedding.append(final_rep)
 
@@ -360,7 +367,6 @@ class LTREnvV2(LTREnv):
         else:
             stacked_rep = np.stack(self.all_embedding)
 
-        print(stacked_rep.shape,'stacked_rep')
         self.previous_obs = stacked_rep
 
         return stacked_rep

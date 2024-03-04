@@ -1,7 +1,10 @@
 from continual_rl.experiments.environment_runners.environment_runner_base import EnvironmentRunnerBase
 from continual_rl.utils.utils import Utils
 from dotmap import DotMap
-
+import torch
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+from transformers import AutoModel, AutoTokenizer
 
 class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
     """
@@ -39,6 +42,8 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
         # IMPALA is handling all training, thus task_base can't enforce the number of steps. Instead we just
         # tell IMPALA how long to run
         flags.total_steps = task_spec.num_timesteps
+        #flags.autoT=AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert',use_fast=False)#
+        #flags.autoM=AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')#.to(device=torch.device('cuda'))
 
         return flags
 

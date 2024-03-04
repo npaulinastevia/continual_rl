@@ -162,7 +162,7 @@ class TaskBase(ABC):
                 break
 
             # all_env_data is a list of timestep_datas
-
+            print(task_timesteps,'task_timesteps')
             if task_spec.eval_mode:
                 timesteps, all_env_data, returns_to_report, logs_to_report,flags = environment_runner.collect_data(task_spec)
             else:

@@ -13,7 +13,7 @@
 # limitations under the License.
 # Taken from https://raw.githubusercontent.com/facebookresearch/torchbeast/3f3029cf3d6d488b8b8f952964795f451a49048f/torchbeast/monobeast.py
 # and modified
-
+import zlib
 import os
 import logging
 import pprint
@@ -45,10 +45,11 @@ from continual_rl.policies.impala.torchbeast.core import prof
 from continual_rl.policies.impala.torchbeast.core import vtrace
 from continual_rl.utils.utils import Utils
 import os
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 from transformers import AutoModel, AutoTokenizer
 Buffers = typing.Dict[str, typing.List[torch.Tensor]]
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class LearnerThreadState():
     STARTING, RUNNING, STOP_REQUESTED, STOPPED = range(4)
@@ -107,6 +108,7 @@ class Monobeast():
         # Pillow sometimes pollutes the logs, see: https://github.com/python-pillow/Pillow/issues/5096
         logging.getLogger("PIL.PngImagePlugin").setLevel(logging.CRITICAL + 1)
 
+
     # Functions designed to be overridden by subclasses of Monobeast
     def on_act_unroll_complete(self, task_flags, actor_index, agent_output, env_output, new_buffers):
         """
@@ -161,6 +163,8 @@ class Monobeast():
         model_flags.device = torch.device(model_flags.device)
 
         model = policy_class(observation_space, action_spaces, model_flags)
+        #autoM = AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')
+
         buffers = self.create_buffers(model_flags, observation_space.shape, model.num_actions)
 
         model.share_memory()
@@ -203,32 +207,42 @@ class Monobeast():
         )
         cross_entropy = cross_entropy.view_as(advantages)
         return torch.sum(cross_entropy * advantages.detach())
-
+    @staticmethod
+    def decode(text):
+        return zlib.decompress(bytes.fromhex(text)).decode()
+    @staticmethod
+    def reduce_dimension_by_mean_pooling(embeddings, attention_mask, to_numpy=False):
+        mask = attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
+        masked_embeddings = embeddings.detach() * mask
+        summed = torch.sum(masked_embeddings, 2)
+        summed_mask = torch.clamp(mask.sum(2), min=1e-9)
+        mean_pooled = summed / summed_mask
+        return mean_pooled.numpy() if to_numpy else mean_pooled
     def act(
             self,
             model_flags,
             task_flags,
-            actor_index: int,
-            free_queue: py_mp.Queue,
-            full_queue: py_mp.Queue,
-            model: torch.nn.Module,
-            buffers: Buffers,
+            actor_index,#: int,
+            free_queue,#: py_mp.Queue,
+            full_queue,#: py_mp.Queue,
+            model,#: torch.nn.Module,
+            buffers,#: Buffers,
             initial_agent_state_buffers,
-    ):
-        env = None
-        try:
-            self.logger.info("Actor %i started.", actor_index)
-            timings = prof.Timings()  # Keep track of how fast things are.
+            autoT,
+            autoM,
+            report,
 
-            gym_env, seed = Utils.make_env(task_flags['env_spec'],create_seed=True,model_flags=model_flags)#create_seed=True
+    ):
+
+            #self.logger.info("Actor %i started.", actor_index)
+            #timings = prof.Timings()  # Keep track of how fast things are.
+
+            gym_env, seed = Utils.make_env(task_flags.env_spec,create_seed=True,model_flags=task_flags)#create_seed=True
 
             #self.logger.info(f"Environment and libraries setup with seed {seed}")
 
             gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
             Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
-
-            print(gym_env.file_path,actor_index,"gym_env.file_path")
-
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
 
@@ -238,26 +252,22 @@ class Monobeast():
 
             agent_state = model.initial_state(batch_size=1)
 
-            agent_output, unused_state = model(env_output, task_flags['action_space_id'], agent_state)
+            agent_output, unused_state = model(env_output, task_flags.action_space_id, agent_state)
 
             # Make sure to kill the env cleanly if a terminate signal is passed. (Will not go through the finally)
-            def end_task(*args):
-                env.close()
 
-            signal.signal(signal.SIGTERM, end_task)
-
+            #signal.signal(signal.SIGTERM, end_task)
+            index=0
             while True:
 
-                index = free_queue.get()
+                #index = free_queue.get()
 
-                if index is None:
-                    break
+               # if index is None:
+               #     break
 
                 # Write old rollout end.
 
                 for key in env_output:
-
-
                     buffers[key][index][0, ...] = env_output[key]
                 for key in agent_output:
                     buffers[key][index][0, ...] = agent_output[key]
@@ -266,95 +276,60 @@ class Monobeast():
 
                 # Do new rollout.
                 for t in range(model_flags.unroll_length):
-                    timings.reset()
+
+                    #timings.reset()
 
                     with torch.no_grad():
-                        agent_output, agent_state = model(env_output, task_flags['action_space_id'], agent_state)
-                    timings.time("model")
+                        agent_output, agent_state = model(env_output, task_flags.action_space_id, agent_state)
+                    #timings.time("model")
                     env_output = env.step(agent_output["action"])
 
-                    timings.time("step")
-
+                    #timings.time("step")
+                    print(index,t,'indexttt')
                     for key in env_output:
                         buffers[key][index][t + 1, ...] = env_output[key]
                     for key in agent_output:
                         buffers[key][index][t + 1, ...] = agent_output[key]
 
-                    # Save off video if appropriate
-                    if actor_index == 0:
-                        if env_output['done'].squeeze():
-                            # If we have a video in there, replace it with this new one
-                            try:
-                                pass
-                                #self._videos_to_log.get(timeout=1)
-                            except queue.Empty:
-                                pass
-                            except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
-                                # Sometimes it seems like the videos_to_log socket fails. Since video logging is not
-                                # mission-critical, just let it go.
-                                self.logger.warning(
-                                    f"Video logging socket seems to have failed with error {e}. Aborting video log.")
-                                pass
-
-                            #self._videos_to_log.put(copy.deepcopy(observations_to_render))
-                            #observations_to_render.clear()
-
-                        #observations_to_render.append(env_output['frame'].squeeze(0).squeeze(0)[-1])
-
-                    timings.time("write")
-
                 new_buffers = {key: buffers[key][index] for key in buffers.keys()}
                 self.on_act_unroll_complete(task_flags, actor_index, agent_output, env_output, new_buffers)
-                full_queue.put(index)
+                index += 1
+                #full_queue.put(index)
+                if index>=model_flags.batch_size:
+                    break
 
-            if actor_index == 0:
-                pass
-                #self.logger.info("Actor %i: %s", actor_index, timings.summary())
 
-        except KeyboardInterrupt:
-            pass  # Return silently.
-        except Exception as e:
-            self.logger.error(f"Exception in worker process {actor_index}: {e}")
-            traceback.print_exc()
-            print()
-            raise e
-        finally:
-            self.logger.info(f"Finalizing actor {actor_index}")
-            if env is not None:
-                env.close()
+
 
     def get_batch(
             self,
             flags,
-            free_queue: py_mp.Queue,
-            full_queue: py_mp.Queue,
             buffers: Buffers,
             initial_agent_state_buffers,
-            timings,
-            lock,
     ):
-        with lock:
-            timings.time("lock")
-            indices = [full_queue.get() for _ in range(flags.batch_size)]
-            timings.time("dequeue")
+        #with lock:
+        #    timings.time("lock")
+        #    indices = [full_queue.get() for _ in range(flags.batch_size)]
+         #   timings.time("dequeue")
+        indices = [k for k in range(flags.batch_size)]
         batch = {
             key: torch.stack([buffers[key][m] for m in indices], dim=1) for key in buffers
         }
         #initial_agent_state = (
         #    torch.cat(ts, dim=1)
-         #   for ts in zip(*[initial_agent_state_buffers[m] for m in indices])
+        #    for ts in zip(*[initial_agent_state_buffers[m] for m in indices])
         #)
-        timings.time("batch")
-        for m in indices:
-            free_queue.put(m)
-        timings.time("enqueue")
+        #timings.time("batch")
+        #for m in indices:
+        #    free_queue.put(m)
+        #timings.time("enqueue")
 
         batch = {k: t.to(device=flags.device, non_blocking=True) for k, t in batch.items()}
         #initial_agent_state = tuple(
-         #   t.to(device=flags.device, non_blocking=True) for t in initial_agent_state
-       # )
-        timings.time("device")
-        return batch, initial_agent_state
+        #    t.to(device=flags.device, non_blocking=True) for t in initial_agent_state
+        #)
+        #timings.time("device")
+        return batch, initial_agent_state_buffers
 
     def compute_loss(self, model_flags, task_flags, learner_model, batch, initial_agent_state, with_custom_loss=True):
         # Note the action_space_id isn't really used - it's used to generate an action, but we use the action that
@@ -433,10 +408,10 @@ class Monobeast():
             scheduler,
             lock,
     ):
-        """Performs a learning (optimization) step."""
-        with lock:
+
+
             # Only log the real batch of new data, not the manipulated version for training, so save it off
-            batch_for_logging = copy.deepcopy(batch)
+            batch_for_logging = copy.copy(batch)
 
             # Prepare the batch for training (e.g. augmenting with more data)
             batch = self.get_batch_for_training(batch)
@@ -464,6 +439,7 @@ class Monobeast():
             if scheduler is not None:
                 scheduler.step()
             actor_model.load_state_dict(learner_model.state_dict())
+            print(stats)
             return stats
 
     def create_buffer_specs(self, unroll_length, obs_shape, num_actions):
@@ -664,9 +640,8 @@ class Monobeast():
 
             return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
-        #self._model_flags.use_scheduler=False
-        self._model_flags.autoT=AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert', use_fast=False)
-        self._model_flags.autoM=AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert').to(device=self._model_flags.device)
+
+#(device=self._model_flags.device)
         if self._model_flags.use_scheduler:
 
             self._scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
@@ -677,96 +652,54 @@ class Monobeast():
             self.logger.info("Loading scheduler state dict")
             self._scheduler.load_state_dict(self._scheduler_state_dict)
             self._scheduler_state_dict = None
-
+        autoT = AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert', use_fast=False)
+        auto_mtoken = AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')
         # Add initial RNN state.
         initial_agent_state_buffers = []
-
-        for _ in range(self._model_flags.num_buffers):
-            state = self.actor_model.initial_state(batch_size=1)
-            #for t in state:
-            #    t.share_memory_()
-            #initial_agent_state_buffers.append(state)
-
-        # Setup actor processes and kick them offset
         self._actor_processes = []
-        ctx = mp.get_context("fork") #mp.get_context("fork")
+        #ctx = mp.get_context("spawn") #mp.get_context("fork")
 
         # See: https://stackoverflow.com/questions/47085458/why-is-multiprocessing-queue-get-so-slow for why Manager
-        self.free_queue = py_mp.Manager().Queue()
-        self.full_queue = py_mp.Manager().Queue()
+        self.free_queue = None#py_mp.Manager().Queue()
+        self.full_queue = None#py_mp.Manager().Queue()
 
 
         initial_agent_state_buffers=0
-        print(task_flags)
-        for i in range(self._model_flags.num_actors):
-            tt={'action_space_id':task_flags.task_flags,'env_spec':task_flags.env_spec}
-            actor = ctx.Process(
-                target=self.act,
-                args=(
-                    self._model_flags,
-                    tt,
-                    i,
-                    self.free_queue,
-                    self.full_queue,
-                    self.actor_model,
-                    self.buffers,
-                    initial_agent_state_buffers,
-                ),
-            )
 
-            actor.start()
-            self._actor_processes.append(actor)
 
-        stat_keys = [
-            "total_loss",
-            "mean_episode_return",
-            "pg_loss",
-            "baseline_loss",
-            "entropy_loss",
-            "vtrace_vs_mean"
-        ]
-        self.logger.info("# Step\t%s", "\t".join(stat_keys))
-
-        step, collected_stats = self.last_timestep_returned, {}
-        self._stats_lock = threading.Lock()
-
-        def batch_and_learn(i, lock, thread_state, batch_lock, learn_lock, thread_free_queue, thread_full_queue):
+        def batch_and_learn():
             """Thread target for the learning process."""
             try:
                 nonlocal step, collected_stats
-                timings = prof.Timings()
+                #timings = prof.Timings()
 
                 while True:
                     # If we've requested a stop, indicate it and end the thread
-                    with thread_state.lock:
-                        if thread_state.state == LearnerThreadState.STOP_REQUESTED:
-                            thread_state.state = LearnerThreadState.STOPPED
-                            return
+                    # with thread_state.lock:
+                    #     if thread_state.state == LearnerThreadState.STOP_REQUESTED:
+                    #         thread_state.state = LearnerThreadState.STOPPED
+                    #         return
+                    #
+                    #     thread_state.state = LearnerThreadState.RUNNING
 
-                        thread_state.state = LearnerThreadState.RUNNING
-
-                    timings.reset()
+                    #timings.reset()
                     batch, agent_state = self.get_batch(
                         self._model_flags,
-                        thread_free_queue,
-                        thread_full_queue,
                         self.buffers,
                         initial_agent_state_buffers,
-                        timings,
-                        batch_lock,
                     )
                     stats = self.learn(
-                        self._model_flags, task_flags, self.actor_model, self.learner_model, batch, agent_state, self.optimizer, self._scheduler, learn_lock
+                        self._model_flags, task_flags, self.actor_model, self.learner_model, batch, agent_state, self.optimizer, self._scheduler, None
                     )
-                    timings.time("learn")
-                    with lock:
-                        step += T * B
-                        to_log = dict(step=step)
-                        to_log.update({k: stats[k] for k in stat_keys if k in stats})
-                        self.plogger.info(to_log)
+                    #timings.time("learn")
+
+                    step += T * B
+                    to_log = dict(step=step)
+                    to_log.update({k: stats[k] for k in stat_keys if k in stats})
+                    self.plogger.info(to_log)
 
                         # We might collect stats more often than we return them to the caller, so collect them all
-                        for key in stats.keys():
+                    for key in stats.keys():
                             if key not in collected_stats:
                                 collected_stats[key] = []
 
@@ -774,39 +707,65 @@ class Monobeast():
                                 collected_stats[key].extend(stats[key])
                             else:
                                 collected_stats[key].append(stats[key])
+                    break
             except Exception as e:
                 self.logger.error(f"Learner thread failed with exception {e}")
                 raise e
 
-            if i == 0:
-                self.logger.info("Batch and learn: %s", timings.summary())
+            #if i == 0:
+             #   self.logger.info("Batch and learn: %s", timings.summary())
 
-            thread_state.state = LearnerThreadState.STOPPED
+            #thread_state.state = LearnerThreadState.STOPPED
 
-        for m in range(self._model_flags.num_buffers):
-            self.free_queue.put(m)
+        #for m in range(self._model_flags.num_buffers):
+        #    self.free_queue.put(m)
 
-        threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
+        #threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
 
         # Create the id for this train loop, and only loop while it is the active id
-        assert self._train_loop_id_running is None, "Attempting to start a train loop while another is active."
+        #assert self._train_loop_id_running is None, "Attempting to start a train loop while another is active."
         train_loop_id = self._train_loop_id_counter
         self._train_loop_id_counter += 1
         self._train_loop_id_running = train_loop_id
         self.logger.info(f"Starting train loop id {train_loop_id}")
 
         timer = timeit.default_timer
-        try:
-            while self._train_loop_id_running == train_loop_id:
+        step, collected_stats = self.last_timestep_returned, {}
+        while True:#self._train_loop_id_running == train_loop_id:
                 start_step = step
                 start_time = timer()
-                time.sleep(self._model_flags.seconds_between_yields)
+                #time.sleep(self._model_flags.seconds_between_yields)
 
                 # Copy right away, because there's a race where stats can get re-set and then certain things set below
                 # will be missing (eg "step")
-                with self._stats_lock:
-                    stats_to_return = copy.deepcopy(collected_stats)
-                    collected_stats.clear()
+                #with self._stats_lock:
+                self.act(
+                    self._model_flags,
+                    task_flags,
+                    0,
+                    self.free_queue,
+                    self.full_queue,
+                    self.actor_model,
+                    self.buffers,
+                    initial_agent_state_buffers,
+                    autoT,
+                    None,
+                    {},
+                )
+                stat_keys = [
+                    "total_loss",
+                    "mean_episode_return",
+                    "pg_loss",
+                    "baseline_loss",
+                    "entropy_loss",
+                    "vtrace_vs_mean"
+                ]
+                self.logger.info("# Step\t%s", "\t".join(stat_keys))
+
+
+                batch_and_learn()
+                stats_to_return = copy.deepcopy(collected_stats)
+                collected_stats.clear()
 
                 sps = (step - start_step) / (timer() - start_time)
 
@@ -832,85 +791,63 @@ class Monobeast():
                 stats_to_return["step"] = step
                 stats_to_return["step_delta"] = step - self.last_timestep_returned
 
-                try:
-                    video = None#self._videos_to_log.get(block=False)
-                    stats_to_return["video"] = video
-                except queue.Empty:
-                    pass
-                except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
-                    # Sometimes it seems like the videos_to_log socket fails. Since video logging is not
-                    # mission-critical, just let it go.
-                    self.logger.warning(f"Video logging socket seems to have failed with error {e}. Aborting video log.")
-                    pass
+                # try:
+                #     video = None#self._videos_to_log.get(block=False)
+                #     stats_to_return["video"] = video
+                # except queue.Empty:
+                #     pass
+                # except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
+                #     # Sometimes it seems like the videos_to_log socket fails. Since video logging is not
+                #     # mission-critical, just let it go.
+                #     self.logger.warning(f"Video logging socket seems to have failed with error {e}. Aborting video log.")
+                #     pass
 
                 # This block sets us up to yield our results in batches, pausing everything while yielded.
-                if self.last_timestep_returned != step:
-                    self.last_timestep_returned = step
+                #if self.last_timestep_returned != step:
+                #     self.last_timestep_returned = step
 
-                    # Stop learn threads, they are recreated after yielding. 
-                    # Do this before the actors in case we need to do a last batch
-                    self.logger.info("Stopping learners")
-                    for thread_id, thread_state in enumerate(self._learner_thread_states):
-                        wait = False
-                        with thread_state.lock:
-                            if thread_state.state != LearnerThreadState.STOPPED and threads[thread_id].is_alive():
-                                thread_state.state = LearnerThreadState.STOP_REQUESTED
-                                wait = True
+                yield stats_to_return
 
-                        # Wait for it to stop, otherwise we have training overlapping with eval, and possibly
-                        # the thread creation below
-                        if wait:
-                            thread_state.wait_for([LearnerThreadState.STOPPED], timeout=30)
+                    # # Ensure everything is set back up to train
+                    # self.actor_model.train()
+                    # self.learner_model.train()
+                    #
+                    # # Resume the actors. If one is dead, replace it with a new one
+                    # for i in range(self._model_flags.num_actors):
+                    #     self.act(
+                    #         self._model_flags,
+                    #         task_flags,
+                    #         i,
+                    #         self.free_queue,
+                    #         self.full_queue,
+                    #         self.actor_model,
+                    #         self.buffers,
+                    #         initial_agent_state_buffers,
+                    #         autoT,
+                    #         None,
+                    #         report_token,
+                    #     )
+                    # #if self._model_flags.pause_actors_during_yield:
+                    # #    self.resume_actor_processes(ctx, task_flags, self._actor_processes, self.free_queue, self.full_queue,
+                    # #                                initial_agent_state_buffers)
+                    #
+                    # # Resume the learners by creating new ones
+                    # self.logger.info("Restarting learners")
+                    # threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
+                    # self.logger.info("Restart complete")
+                    #
+                    # for m in range(self._model_flags.num_buffers):
+                    #     self.free_queue.put(m)
+                    # self.logger.info("Free queue re-populated")
 
-                    # The actors will keep going unless we pause them, so...do that.
-                    if self._model_flags.pause_actors_during_yield:
-                        for actor in self._actor_processes:
-                            psutil.Process(actor.pid).suspend()
+            #except KeyboardInterrupt:
+             #   pass
 
-                    # Make sure the queue is empty (otherwise things can get dropped in the shuffle)
-                    # (Not 100% sure relevant but:) https://stackoverflow.com/questions/19257375/python-multiprocessing-queue-put-not-working-for-semi-large-data
-                    while not self.free_queue.empty():
-                        try:
-                            self.free_queue.get(block=False)
-                        except queue.Empty:
-                            # Race between empty check and get, I guess
-                            break
-
-                    while not self.full_queue.empty():
-                        try:
-                            self.full_queue.get(block=False)
-                        except queue.Empty:
-                            # Race between empty check and get, I guess
-                            break
-
-                    yield stats_to_return
-
-                    # Ensure everything is set back up to train
-                    self.actor_model.train()
-                    self.learner_model.train()
-
-                    # Resume the actors. If one is dead, replace it with a new one
-                    if self._model_flags.pause_actors_during_yield:
-                        self.resume_actor_processes(ctx, task_flags, self._actor_processes, self.free_queue, self.full_queue,
-                                                    initial_agent_state_buffers)
-
-                    # Resume the learners by creating new ones
-                    self.logger.info("Restarting learners")
-                    threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
-                    self.logger.info("Restart complete")
-
-                    for m in range(self._model_flags.num_buffers):
-                        self.free_queue.put(m)
-                    self.logger.info("Free queue re-populated")
-
-        except KeyboardInterrupt:
-            pass
-
-        finally:
-            self._cleanup_parallel_workers()
-            for thread in threads:
-                thread.join()
-            self.logger.info("Learning finished after %d steps.", step)
+        #finally:
+         #   self._cleanup_parallel_workers()
+         #   for thread in threads:
+          #      thread.join()
+          #  self.logger.info("Learning finished after %d steps.", step)
 
     @staticmethod
     def _collect_test_episode(pickled_args):
