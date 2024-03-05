@@ -46,7 +46,7 @@ class Environment:
             #initial_frame=initial_frame[0:7,0:7]
             initial_frame= initial_frame.unsqueeze(0)
             initial_frame = initial_frame.unsqueeze(0)
-            print(initial_frame.shape)
+
    
         else:
             initial_frame = _format_frame(self.gym_env.reset())

@@ -129,7 +129,7 @@ class LTREnv(gym.Env):
             not_matched = pd.DataFrame(columns=matched.columns)
             match_counter = matched.groupby('id')['cid'].count()
             for row in match_counter.iteritems():
-                print('icicic')
+
                 temp = self.df[(self.df['match'] != 1) & (self.df['id'] == row[0])].sample(frac=1).reset_index(
                     drop=True).head(self.action_space_dim - row[1])
 

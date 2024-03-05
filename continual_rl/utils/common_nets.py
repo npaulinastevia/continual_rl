@@ -37,7 +37,7 @@ class ModelUtils(object):
     @classmethod
     def compute_output_shape(cls, net, observation_size):
         dummy_input = torch.zeros(observation_size).unsqueeze(0)  # Observation size doesn't include batch, so add it
-        print(dummy_input.shape,'dummmmmmy')
+
         dummy_output = net(dummy_input).squeeze(0)  # Remove batch
         output_shape = dummy_output.shape
         return output_shape

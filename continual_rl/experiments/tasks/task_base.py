@@ -168,7 +168,7 @@ class TaskBase(ABC):
             else:
                 timesteps, all_env_data, returns_to_report, logs_to_report= environment_runner.collect_data(
                     task_spec)
-            print(task_spec.eval_mode, 'task_spec.eval_mode')
+
             for r in range(len(returns_to_report)):
 
                 if not task_spec.eval_mode:

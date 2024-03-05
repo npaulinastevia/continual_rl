@@ -70,7 +70,6 @@ class Utils(object):
         project_name = config_.project_name
 
         mpath ='/scratch/nstevia/bug_localization/micro_codebert'# '/scratch/f/foutsekh/nstevia/bug_localization/micro_codebert'#'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
-        print(file_path,train_data_path,env_spec,"envvvfd")
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):

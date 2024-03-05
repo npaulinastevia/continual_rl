@@ -285,7 +285,7 @@ class Monobeast():
                     env_output = env.step(agent_output["action"])
 
                     #timings.time("step")
-                    print(index,t,'indexttt')
+
                     for key in env_output:
                         buffers[key][index][t + 1, ...] = env_output[key]
                     for key in agent_output:
@@ -765,6 +765,7 @@ class Monobeast():
 
                 batch_and_learn()
                 stats_to_return = copy.deepcopy(collected_stats)
+
                 collected_stats.clear()
 
                 sps = (step - start_step) / (timer() - start_time)
@@ -780,14 +781,14 @@ class Monobeast():
                         # Replace with the number we collected and the mean value, otherwise the logs are very verbose
                         stats_to_return[f"{key}_count"] = len(np.array(stats_to_return.get(key, [])))
                         stats_to_return[key] = np.array(stats_to_return.get(key, [np.nan])).mean()
-
-                self.logger.info(
-                    "Steps %i @ %.1f SPS. Mean return %f. Stats:\n%s",
-                    step,
-                    sps,
-                    mean_return,
-                    pprint.pformat(stats_to_return),
-                )
+                print('step, sps, mean_return',step,sps,mean_return)
+                #self.logger.info(
+               #     "Steps %i @ %.1f SPS. Mean return %f. Stats:\n%s",
+               #     step,
+                #    sps,
+                #    mean_return,
+                    #pprint.pformat(stats_to_return),
+               # )
                 stats_to_return["step"] = step
                 stats_to_return["step_delta"] = step - self.last_timestep_returned
 
@@ -863,13 +864,14 @@ class Monobeast():
         returns = []
         total_flags=[]
         while not done:
-            if task_flags.mode == "test_render":
-                env.gym_env.render()
+            #if task_flags.mode == "test_render":
+            #    env.gym_env.render()
             agent_outputs = model(observation, task_flags.action_space_id)
             policy_outputs, _ = agent_outputs
 
             observation = env.step(policy_outputs["action"])
             step += 1
+
             if len(gym_env.reset().shape)==1:
                 if -0.5 < observation['frame'][0] < -0.45 and not flag_injected_bug_spotted[0]:
                     flag_injected_bug_spotted[0] = True
@@ -890,6 +892,7 @@ class Monobeast():
                     observation["episode_return"].item(),
                 )
 
+
         env.close()
         return step, returns,total_flags
 
@@ -907,13 +910,14 @@ class Monobeast():
             batch_num_episodes = min(num_episodes - batch_start_id, self._model_flags.eval_episode_num_parallel)
             for episode_id in range(batch_num_episodes):
                 pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model))
+
                 episode_step, episode_returns, all_flags=self._collect_test_episode(pickled_args)
                 #episode_step, episode_returns, all_flags = async_obj.get()
                 step += episode_step
                 returns.extend(episode_returns)
                 all_f.extend(all_flags)
             self.logger.info(
-                "Average returns over %i episodes: %.1f", len(returns), sum(returns) / len(returns)
+                "Average returns over %i episodes: %.1f", len(returns), sum(returns)
             )
             stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns), "all_flags": all_f}
             # with Pool(processes=batch_num_episodes) as pool:
