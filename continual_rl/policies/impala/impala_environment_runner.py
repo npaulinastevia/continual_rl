@@ -96,11 +96,12 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
         assert len(self._result_generators) == 0 or task_spec in self._result_generators
         if task_spec not in self._result_generators:
             self._result_generators[task_spec] = self._initialize_data_generator(task_spec)
+            self.result_gen = self._result_generators[task_spec]
 
-        result_generator = self._result_generators[task_spec]
+        #result_generator = self._result_generators[task_spec]
 
         try:
-            stats = next(result_generator)
+            stats = next(self.result_gen)#stats = next(result_generator)
         except StopIteration:
             stats = None
 

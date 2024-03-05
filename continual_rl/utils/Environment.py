@@ -51,7 +51,7 @@ class LTREnv(gym.Env):
         self.model_path=model_path
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-        self.model = AutoModel.from_pretrained(tokenizer_path)#.to(self.dev)
+        self.model = AutoModel.from_pretrained(tokenizer_path).to(self.dev)
         # self.model.save_pretrained('/home/paulina/Downloads/micro_codebert')
         # self.tokenizer.save_pretrained('/home/paulina/Downloads/micro_codebert')
 
@@ -91,7 +91,7 @@ class LTREnv(gym.Env):
         summed = torch.sum(masked_embeddings, 2)
         summed_mask = torch.clamp(mask.sum(2), min=1e-9)
         mean_pooled = summed / summed_mask
-        return mean_pooled.numpy() if to_numpy else mean_pooled
+        return mean_pooled.cpu().numpy() if to_numpy else mean_pooled
 
     def __get_ids(self):
 
@@ -341,7 +341,7 @@ class LTREnvV2(LTREnv):
                             code_output.last_hidden_state,
                             code_token['attention_mask'])
 
-                    final_rep = np.concatenate([report_embedding, code_embedding, [[1e-7]]], axis=1)[0]
+                    final_rep = np.concatenate([report_embedding.cpu(), code_embedding.cpu(), [[1e-7]]], axis=1)[0]
                     self.all_embedding.append(final_rep)
 
                 if self.caching:

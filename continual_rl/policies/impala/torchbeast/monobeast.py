@@ -771,7 +771,7 @@ class Monobeast():
 
                 # Aggregate our collected values. Do it with mean so it's not sensitive to the number of times
                 # learning occurred in the interim
-                mean_return = np.array(stats_to_return.get("episode_returns", [np.nan])).mean()
+                mean_return = np.array(stats_to_return.get("episode_returns", [np.nan]))#.mean()
                 stats_to_return["mean_episode_return"] = mean_return
 
                 # Make a copy of the keys so we're not updating it as we iterate over it
@@ -881,8 +881,9 @@ class Monobeast():
             if done:
 
                 returns.append(observation["episode_return"].item())
-                total_flags.append(flag_injected_bug_spotted)
-                flag_injected_bug_spotted = [False, False]
+                if len(gym_env.reset().shape) == 1:
+                    total_flags.append(flag_injected_bug_spotted)
+                    flag_injected_bug_spotted = [False, False]
                 logger.info(
                     "Episode ended after %d steps. Return: %.1f",
                     observation["episode_step"].item(),
@@ -904,23 +905,31 @@ class Monobeast():
         for batch_start_id in range(0, num_episodes, self._model_flags.eval_episode_num_parallel):
             # If we are in the last batch, only do the necessary number, otherwise do the max num in parallel
             batch_num_episodes = min(num_episodes - batch_start_id, self._model_flags.eval_episode_num_parallel)
+            for episode_id in range(batch_num_episodes):
+                pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model))
+                episode_step, episode_returns, all_flags=self._collect_test_episode(pickled_args)
+                #episode_step, episode_returns, all_flags = async_obj.get()
+                step += episode_step
+                returns.extend(episode_returns)
+                all_f.extend(all_flags)
+            self.logger.info(
+                "Average returns over %i episodes: %.1f", len(returns), sum(returns) / len(returns)
+            )
+            stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns), "all_flags": all_f}
+            # with Pool(processes=batch_num_episodes) as pool:
+            #     async_objs = []
+            #     for episode_id in range(batch_num_episodes):
+            #         pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model))
+            #         async_obj = pool.apply_async(self._collect_test_episode, (pickled_args,))
+            #         async_objs.append(async_obj)
+            #
+            #     for async_obj in async_objs:
+            #         episode_step, episode_returns,all_flags = async_obj.get()
+            #         step += episode_step
+            #         returns.extend(episode_returns)
+            #         all_f.extend(all_flags)
 
-            with Pool(processes=batch_num_episodes) as pool:
-                async_objs = []
-                for episode_id in range(batch_num_episodes):
-                    pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model))
-                    async_obj = pool.apply_async(self._collect_test_episode, (pickled_args,))
-                    async_objs.append(async_obj)
 
-                for async_obj in async_objs:
-                    episode_step, episode_returns,all_flags = async_obj.get()
-                    step += episode_step
-                    returns.extend(episode_returns)
-                    all_f.extend(all_flags)
 
-        self.logger.info(
-            "Average returns over %i episodes: %.1f", len(returns), sum(returns) / len(returns)
-        )
-        stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns),"all_flags": all_f}
 
-        yield stats
+            yield stats
