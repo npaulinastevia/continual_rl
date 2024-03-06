@@ -652,8 +652,8 @@ class Monobeast():
             self.logger.info("Loading scheduler state dict")
             self._scheduler.load_state_dict(self._scheduler_state_dict)
             self._scheduler_state_dict = None
-        autoT = AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert', use_fast=False)
-        auto_mtoken = AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')
+        autoT = None#AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert', use_fast=False)
+        auto_mtoken = None#AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')
         # Add initial RNN state.
         initial_agent_state_buffers = []
         self._actor_processes = []
