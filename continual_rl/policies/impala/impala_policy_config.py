@@ -7,8 +7,8 @@ class ImpalaPolicyConfig(ConfigBase):
     def __init__(self):
         super().__init__()
         self.num_actors = 1#4
-        self.batch_size = 8
-        self.unroll_length = 80
+        self.batch_size = 2#8
+        self.unroll_length = 1#80
         self.num_buffers = None
         self.num_learner_threads = 2
         self.use_lstm = False  # Not presently fully supported

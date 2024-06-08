@@ -33,8 +33,8 @@ from collections import deque
 import gym
 from gym import spaces
 import torch
-import cv2
-cv2.ocl.setUseOpenCL(False)
+#import cv2
+#cv2.ocl.setUseOpenCL(False)
 
 
 class NoopResetEnv(gym.Wrapper):

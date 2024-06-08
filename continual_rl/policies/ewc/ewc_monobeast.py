@@ -53,6 +53,7 @@ class EWCTaskInfo(object):
             self.replay_buffer_counters.zero_()
 
         # Main-process only variables
+
         self.ewc_regularization_terms = None
 
     def _create_replay_buffers(self, model_flags, specs, entries_per_buffer, permanent_path):
@@ -205,18 +206,18 @@ class EWCMonobeast(Monobeast):
         """
         # If we've moved to a new task, save off what we need to for ewc loss computation
         # Don't let multiple learner threads trigger the checkpointing
-        with self._checkpoint_lock:
-            cur_task_id = task_flags.task_id
-            if self._prev_task_id is not None and cur_task_id != self._prev_task_id:
+        #with self._checkpoint_lock:
+        cur_task_id = task_flags.task_id
+        if self._prev_task_id is not None and cur_task_id != self._prev_task_id:
                 # Note: task_flags passed in here are only pseudo-used. Consider using prev task flags if this changes
                 self.logger.info(f"EWC: checkpointing {self._prev_task_id}")
 
                 # EWC checkpointing can take some time, so attempting to pause stats reporting
                 # so not just reporting nans. Still works without this, but cuts down on the
                 # nans logged so to not appear like actors are dead. 
-                with self._stats_lock:
-                    self.checkpoint_task(self._prev_task_id, task_flags, model, online=self._model_flags.online_ewc)
-            self._prev_task_id = cur_task_id
+                #with self._stats_lock:
+                self.checkpoint_task(self._prev_task_id, task_flags, model, online=self._model_flags.online_ewc)
+        self._prev_task_id = cur_task_id
 
         if self._model_flags.online_ewc or self._get_task(cur_task_id).total_steps >= self._model_flags.ewc_per_task_min_frames:
             ewc_loss = self._model_flags.ewc_lambda * self._compute_ewc_loss(task_flags, model)
@@ -229,6 +230,7 @@ class EWCMonobeast(Monobeast):
 
     def checkpoint_task(self, task_id, task_flags, model, online=False):
         # save model weights for task (MAP estimate)
+
         task_params = {}
         for n, p in model.named_parameters():
             task_params[n] = p.detach().clone()
@@ -288,6 +290,7 @@ class EWCMonobeast(Monobeast):
 
     def on_act_unroll_complete(self, task_flags, actor_index, agent_output, env_output, new_buffers):
         if not self._collection_paused:
+
             task_info = self._get_task(task_flags.task_id)
 
             # update the tasks's total_steps
@@ -313,6 +316,7 @@ class EWCMonobeast(Monobeast):
 
         # Select a random actor, and from that, a random buffer entry.
         for _ in range(replay_entry_count):
+
             actor_index = random_state.randint(0, self._model_flags.num_actors)
 
             # We may not have anything in this buffer yet, so check for that (randint complains)

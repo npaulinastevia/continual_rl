@@ -7,8 +7,8 @@ class SanePolicyConfig(ClearPolicyConfig):
         super().__init__()
         self.allowed_uncertainty_scale_for_creation = [1.0, 10.0]
         self.uncertainty_scale = 1.0
-        self.min_steps_before_force_create = 100000
-        self.max_nodes = 16
+        self.min_steps_before_force_create = 100#100000
+        self.max_nodes = 1#16
         self.fraction_of_nodes_mergeable = 0.75  # Of max_nodes
         self.create_adds_replay = False
         self.clear_loss_coeff = 1.0

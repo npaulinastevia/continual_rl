@@ -59,6 +59,7 @@ class ConfigurationLoader(object):
             del raw_config['timestamp']
         policy_config = policy_config_class().load_from_dict(raw_config)
 
+
         # Set the experiment_output dir such that is accessible both from the experiment and from the policy
         # (via its config)
         experiment.set_output_dir(experiment_output_dir)

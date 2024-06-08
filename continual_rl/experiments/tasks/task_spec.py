@@ -15,7 +15,7 @@ class TaskSpec(object):
         self._num_timesteps = num_timesteps
         self._eval_mode = eval_mode
         self._return_after_episode_num = return_after_episode_num
-        self._with_continual_eval = with_continual_eval
+        self._with_continual_eval = False#with_continual_eval
         self._run_id=run_id
         self._policy_id=policy_id
 

@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from continual_rl.utils.common_nets import get_network_for_size
 from continual_rl.utils.utils import Utils
-
+from transformers import AutoModel, AutoTokenizer
 
 class ImpalaNet(nn.Module):
     """
@@ -23,6 +23,8 @@ class ImpalaNet(nn.Module):
         self._action_spaces = action_spaces  # The max number of actions - the policy's output size is always this
         self._current_action_size = None  # Set by the environment_runner
         self._observation_space = observation_space
+
+
 
         if conv_net is None:
             # The conv net gets channels and time merged together (mimicking the original FrameStacking)
@@ -75,7 +77,9 @@ class ImpalaNet(nn.Module):
         return tuple()
 
     def forward(self, inputs, action_space_id, core_state=()):
-        x = inputs["frame"]  # [T, B, S, C, H, W]. T=timesteps in collection, S=stacked frames
+          # [T, B, S, C, H, W]. T=timesteps in collection, S=stacked frames
+
+        x = inputs["frame"]
         if len(self._observation_space.shape)==1:
 
             one_hot_last_action = F.one_hot(
