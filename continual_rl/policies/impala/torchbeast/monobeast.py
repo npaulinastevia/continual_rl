@@ -223,7 +223,7 @@ class Monobeast():
 
             gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
             Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
-            assert False
+
             print(gym_env.file_path,actor_index,"gym_env.file_path")
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
@@ -683,8 +683,8 @@ class Monobeast():
         ctx = mp.get_context("spawn") #mp.get_context("fork")
 
         # See: https://stackoverflow.com/questions/47085458/why-is-multiprocessing-queue-get-so-slow for why Manager
-        self.free_queue = py_mp.Manager().Queue()
-        self.full_queue = py_mp.Manager().Queue()
+        self.free_queue = py_mp.Queue()
+        self.full_queue = py_mp.Queue()
 
         for i in range(self._model_flags.num_actors):
             actor = ctx.Process(
@@ -820,7 +820,7 @@ class Monobeast():
                 stats_to_return["step_delta"] = step - self.last_timestep_returned
 
                 try:
-                    video = self._videos_to_log.get(block=False)
+                    video = None#self._videos_to_log.get(block=False)
                     stats_to_return["video"] = video
                 except queue.Empty:
                     pass

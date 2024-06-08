@@ -17,4 +17,4 @@ if __name__ == "__main__":
     if experiment is None:
         raise RuntimeError("No experiment started. Most likely there is no new run to start.")
     #summary_writer = SummaryWriter(log_dir=experiment.output_dir)
-    experiment.try_run(policy, summary_writer=experiment.output_dir)#experiment.try_run(policy, summary_writer=summary_writer)
+    experiment.try_run(policy, summary_writer=None)#experiment.try_run(policy, summary_writer=summary_writer)
