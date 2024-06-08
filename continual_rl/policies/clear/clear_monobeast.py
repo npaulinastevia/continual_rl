@@ -21,8 +21,8 @@ class ClearMonobeast(Monobeast):
 
         # LSTMs not supported largely because they have not been validated; nothing extra is stored for them.
         assert not model_flags.use_lstm, "CLEAR does not presently support using LSTMs."
-        assert self._model_flags.always_reuse_actor_indices or self._model_flags.num_actors >= int(self._model_flags.batch_size * self._model_flags.batch_replay_ratio), \
-            "Each actor only gets sampled from once during training, so we need at least as many actors as batch_size"
+        #assert self._model_flags.always_reuse_actor_indices or self._model_flags.num_actors >= int(self._model_flags.batch_size * self._model_flags.batch_replay_ratio), \
+          #  "Each actor only gets sampled from once during training, so we need at least as many actors as batch_size"
         self._model_flags = model_flags
 
         # We want the replay buffers to be created in the large_file_path,
@@ -51,7 +51,7 @@ class ClearMonobeast(Monobeast):
             permanent_path,
             buffers_existed,
         )
-        self._replay_lock = threading.Lock()
+        #self._replay_lock = threading.Lock()
 
         # Each replay batch needs to also have cloning losses applied to it
         # Keep track of them as they're generated, to ensure we apply losses to all. This doesn't currently
@@ -186,9 +186,9 @@ class ClearMonobeast(Monobeast):
 
         # Do the replacement into the buffer, and update the reservoir_vals list
         if to_populate_replay_index is not None:
-            with self._replay_lock:
-                actor_replay_reservoir_vals[to_populate_replay_index][0] = new_entry_reservoir_val
-                for key in new_buffers.keys():
+            #with self._replay_lock:
+            actor_replay_reservoir_vals[to_populate_replay_index][0] = new_entry_reservoir_val
+            for key in new_buffers.keys():
                     if key == 'reservoir_val':
                         continue
                     self._replay_buffers[key][actor_index][to_populate_replay_index][...] = new_buffers[key]
@@ -208,14 +208,14 @@ class ClearMonobeast(Monobeast):
 
         random_state = np.random.RandomState()
 
-        with self._replay_lock:
+        #with self._replay_lock:
             # Select a random actor, and from that, a random buffer entry.
-            for _ in range(replay_entry_count):
+        for _ in range(replay_entry_count):
                 # Pick an actor and remove it from our options
-                actor_index = random_state.choice(actor_indices)
+                actor_index =0# random_state.choice(actor_indices)
 
-                if not reuse_actor_indices and not self._model_flags.always_reuse_actor_indices:
-                    actor_indices.remove(actor_index)
+                #if not reuse_actor_indices and not self._model_flags.always_reuse_actor_indices:
+                #    actor_indices.remove(actor_index)
 
                 # From that actor's set of available indices, pick one randomly.
                 replay_indices = self._get_replay_buffer_filled_indices(self._replay_buffers, actor_index=actor_index)
@@ -223,7 +223,7 @@ class ClearMonobeast(Monobeast):
                     buffer_index = random_state.choice(replay_indices)
                     shuffled_subset.append((actor_index, buffer_index))
 
-            if len(shuffled_subset) > 0:
+        if len(shuffled_subset) > 0:
                 replay_batch = {
                     # Get the actor_index and entry_id from the raw id
                     key: torch.stack([self._replay_buffers[key][actor_id][buffer_id]
@@ -252,7 +252,7 @@ class ClearMonobeast(Monobeast):
                 if store_for_loss:
                     self._replay_batches_for_loss.put(replay_batch)
 
-            else:
+        else:
                 combo_batch = batch
 
         return combo_batch
@@ -272,7 +272,7 @@ class ClearMonobeast(Monobeast):
             print("Skipping CLEAR custom loss due to lack of replay_batch")
 
         if replay_batch is not None:
-            replay_learner_outputs, unused_state = model(replay_batch, task_flags.action_space_id, initial_agent_state)
+            replay_learner_outputs, unused_state = model(replay_batch, task_flags.action_space_id, replay_batch['pik'])
 
             replay_batch_policy = replay_batch['policy_logits']
             current_policy = replay_learner_outputs['policy_logits']

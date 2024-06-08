@@ -76,7 +76,7 @@ class ImpalaNet(nn.Module):
                                   "implemented."
         return tuple()
 
-    def forward(self, inputs, action_space_id, core_state=()):
+    def forward(self, inputs, action_space_id,pickeda=None, core_state=()):
           # [T, B, S, C, H, W]. T=timesteps in collection, S=stacked frames
 
         x = inputs["frame"]
@@ -202,10 +202,33 @@ class ImpalaNet(nn.Module):
 
             if len(self._observation_space.shape)==1:
                 policy_logits_subset=policy_logits_subset.view(-1,policy_logits_subset.shape[-1])
-            action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1), num_samples=1)
+            if len(self._observation_space.shape) == 1:
+                action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1), num_samples=1)
+            else:
+
+                if pickeda is not None:
+                    pickeda = pickeda.view(*policy_logits_subset.shape)
+                  
+                    if torch.sum(pickeda)>0:
+                        row_sum_gt_zero = torch.sum(F.softmax(policy_logits_subset, dim=-1)*pickeda,dim=1) > 0
+                        if row_sum_gt_zero.all().item():
+                        #print(policy_logits_subset,'anddddd',F.softmax(policy_logits_subset, dim=-1),'eeee',pickeda)
+                        #print('alorssss')
+                            #print(F.softmax(policy_logits_subset, dim=-1)*pickeda)
+                            action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1)*pickeda, num_samples=1)
+                        else:
+                            action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1), num_samples=1)
+                    else:
+                        action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1), num_samples=1)
+                else:
+                    action = torch.multinomial(F.softmax(policy_logits_subset, dim=-1), num_samples=1)
         else:
             # Don't sample when testing.
-            action = torch.argmax(policy_logits_subset, dim=-1)
+            if len(self._observation_space.shape) == 1:
+                action = torch.argmax(policy_logits_subset, dim=-1)
+            else:
+                action = torch.argmax(policy_logits_subset*pickeda, dim=-1)
+
         if len(self._observation_space.shape) >1:
             policy_logits = policy_logits.view(T, B, self.num_actions)
             baseline = baseline.view(T, B, self._baseline_output_dim)

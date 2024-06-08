@@ -13,7 +13,7 @@
 # limitations under the License.
 # Taken from https://raw.githubusercontent.com/facebookresearch/torchbeast/3f3029cf3d6d488b8b8f952964795f451a49048f/torchbeast/monobeast.py
 # and modified
-
+import zlib
 import os
 import logging
 import pprint
@@ -33,7 +33,7 @@ import threading
 import json
 import shutil
 import signal
-
+import multiprocessing
 import torch
 import multiprocessing as py_mp
 from torch import multiprocessing as mp
@@ -44,10 +44,12 @@ from continual_rl.policies.impala.torchbeast.core import environment
 from continual_rl.policies.impala.torchbeast.core import prof
 from continual_rl.policies.impala.torchbeast.core import vtrace
 from continual_rl.utils.utils import Utils
+import os
 
-
+from transformers import AutoModel, AutoTokenizer
 Buffers = typing.Dict[str, typing.List[torch.Tensor]]
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class LearnerThreadState():
     STARTING, RUNNING, STOP_REQUESTED, STOPPED = range(4)
@@ -58,7 +60,7 @@ class LearnerThreadState():
         setting state is atomic enough to not require further thread safety.
         """
         self.state = self.STARTING
-        self.lock = threading.Lock()
+        self.lock =  threading.Lock()
 
     def wait_for(self, desired_state_list, timeout=300):
         time_passed = 0
@@ -105,6 +107,7 @@ class Monobeast():
 
         # Pillow sometimes pollutes the logs, see: https://github.com/python-pillow/Pillow/issues/5096
         logging.getLogger("PIL.PngImagePlugin").setLevel(logging.CRITICAL + 1)
+
 
     # Functions designed to be overridden by subclasses of Monobeast
     def on_act_unroll_complete(self, task_flags, actor_index, agent_output, env_output, new_buffers):
@@ -156,9 +159,12 @@ class Monobeast():
             raise ValueError("num_buffers should be larger than batch_size")
 
         # Convert the device string into an actual device
+
         model_flags.device = torch.device(model_flags.device)
 
         model = policy_class(observation_space, action_spaces, model_flags)
+        #autoM = AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')
+
         buffers = self.create_buffers(model_flags, observation_space.shape, model.num_actions)
 
         model.share_memory()
@@ -201,158 +207,152 @@ class Monobeast():
         )
         cross_entropy = cross_entropy.view_as(advantages)
         return torch.sum(cross_entropy * advantages.detach())
-
+    @staticmethod
+    def decode(text):
+        return zlib.decompress(bytes.fromhex(text)).decode()
+    @staticmethod
+    def reduce_dimension_by_mean_pooling(embeddings, attention_mask, to_numpy=False):
+        mask = attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
+        masked_embeddings = embeddings.detach() * mask
+        summed = torch.sum(masked_embeddings, 2)
+        summed_mask = torch.clamp(mask.sum(2), min=1e-9)
+        mean_pooled = summed / summed_mask
+        return mean_pooled.numpy() if to_numpy else mean_pooled
     def act(
             self,
             model_flags,
             task_flags,
-            actor_index: int,
-            free_queue: py_mp.Queue,
-            full_queue: py_mp.Queue,
-            model: torch.nn.Module,
-            buffers: Buffers,
+            actor_index,#: int,
+            free_queue,#: py_mp.Queue,
+            full_queue,#: py_mp.Queue,
+            model,#: torch.nn.Module,
+            buffers,#: Buffers,
             initial_agent_state_buffers,
+            autoT,
+            autoM,
+            report,
+
     ):
-        env = None
-        try:
-            self.logger.info("Actor %i started.", actor_index)
-            timings = prof.Timings()  # Keep track of how fast things are.
 
-            gym_env, seed = Utils.make_env(task_flags.env_spec)#create_seed=True
-            self.logger.info(f"Environment and libraries setup with seed {seed}")
+            #self.logger.info("Actor %i started.", actor_index)
+            #timings = prof.Timings()  # Keep track of how fast things are.
 
-            gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(actor_index))
+            gym_env, seed = Utils.make_env(task_flags.env_spec,create_seed=True,model_flags=task_flags)#create_seed=True
+
+            #self.logger.info(f"Environment and libraries setup with seed {seed}")
+
+            gym_env.file_path=os.path.join(os.getcwd(),model_flags.output_dir,"LTR_"+str(task_flags.env_spec))
             Path(gym_env.file_path).mkdir(parents=True, exist_ok=True)
-
-            print(gym_env.file_path,actor_index,"gym_env.file_path")
             # Parameters involved in rendering behavior video
             observations_to_render = []  # Only populated by actor 0
 
             env = environment.Environment(gym_env)
 
             env_output = env.initial()
-
-            agent_state = model.initial_state(batch_size=1)
-            agent_output, unused_state = model(env_output, task_flags.action_space_id, agent_state)
+            pik=[]
+            agent_state = self.actor_model.initial_state(batch_size=1)
+            xx= torch.from_numpy(
+                self.to_one_hot(pik, max_size=env.gym_env.action_space.n)).to(
+                env_output['frame'].device).type(torch.float)
+            agent_output, unused_state = self.actor_model(env_output, task_flags.action_space_id,pickeda=xx)
 
             # Make sure to kill the env cleanly if a terminate signal is passed. (Will not go through the finally)
-            def end_task(*args):
-                env.close()
 
-            signal.signal(signal.SIGTERM, end_task)
-
+            #signal.signal(signal.SIGTERM, end_task)
+            index=0
             while True:
 
-                index = free_queue.get()
+                #index = free_queue.get()
 
-                if index is None:
-                    break
+               # if index is None:
+               #     break
 
                 # Write old rollout end.
-
+                pik = []
+                buffers['pik'][index][0, ...] = torch.from_numpy(
+                    self.to_one_hot(pik, max_size=env.gym_env.action_space.n)).to(
+                    env_output['frame'].device).type(torch.float)
                 for key in env_output:
-
-
                     buffers[key][index][0, ...] = env_output[key]
                 for key in agent_output:
                     buffers[key][index][0, ...] = agent_output[key]
-                for i, tensor in enumerate(agent_state):
-                    initial_agent_state_buffers[index][i][...] = tensor
+                #for i, tensor in enumerate(agent_state):
+                 #   initial_agent_state_buffers[index][i][...] = tensor
 
                 # Do new rollout.
+
                 for t in range(model_flags.unroll_length):
-                    timings.reset()
+
+                    #timings.reset()
+                    temp_action = torch.from_numpy(self.to_one_hot(pik, max_size=env.gym_env.action_space.n)).to(
+                        env_output['frame'].device).type(torch.float)
 
                     with torch.no_grad():
-                        agent_output, agent_state = model(env_output, task_flags.action_space_id, agent_state)
-                    timings.time("model")
+                        agent_output, agent_state = self.actor_model(env_output, task_flags.action_space_id,pickeda=temp_action)
+                    #timings.time("model")
                     env_output = env.step(agent_output["action"])
+                    pik.append(agent_output["action"].item())
 
-                    timings.time("step")
 
+                    #timings.time("step")
+
+                    if len(pik)>=31:
+                        buffers['pik'][index][t + 1, ...] = torch.from_numpy(
+                            self.to_one_hot([], max_size=env.gym_env.action_space.n)).to(
+                            env_output['frame'].device).type(torch.float)
+                    else:
+                        buffers['pik'][index][t + 1, ...] = torch.from_numpy(
+                            self.to_one_hot(pik, max_size=env.gym_env.action_space.n)).to(
+                            env_output['frame'].device).type(torch.float)
                     for key in env_output:
                         buffers[key][index][t + 1, ...] = env_output[key]
                     for key in agent_output:
                         buffers[key][index][t + 1, ...] = agent_output[key]
 
-                    # Save off video if appropriate
-                    if actor_index == 0:
-                        if env_output['done'].squeeze():
-                            # If we have a video in there, replace it with this new one
-                            try:
-                                self._videos_to_log.get(timeout=1)
-                            except queue.Empty:
-                                pass
-                            except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
-                                # Sometimes it seems like the videos_to_log socket fails. Since video logging is not
-                                # mission-critical, just let it go.
-                                self.logger.warning(
-                                    f"Video logging socket seems to have failed with error {e}. Aborting video log.")
-                                pass
-
-                            self._videos_to_log.put(copy.deepcopy(observations_to_render))
-                            observations_to_render.clear()
-
-                        observations_to_render.append(env_output['frame'].squeeze(0).squeeze(0)[-1])
-
-                    timings.time("write")
-
                 new_buffers = {key: buffers[key][index] for key in buffers.keys()}
                 self.on_act_unroll_complete(task_flags, actor_index, agent_output, env_output, new_buffers)
-                full_queue.put(index)
+                index += 1
+                #full_queue.put(index)
+                if index>=model_flags.batch_size:
+                    break
 
-            if actor_index == 0:
-                self.logger.info("Actor %i: %s", actor_index, timings.summary())
 
-        except KeyboardInterrupt:
-            pass  # Return silently.
-        except Exception as e:
-            self.logger.error(f"Exception in worker process {actor_index}: {e}")
-            traceback.print_exc()
-            print()
-            raise e
-        finally:
-            self.logger.info(f"Finalizing actor {actor_index}")
-            if env is not None:
-                env.close()
+
 
     def get_batch(
             self,
             flags,
-            free_queue: py_mp.Queue,
-            full_queue: py_mp.Queue,
             buffers: Buffers,
             initial_agent_state_buffers,
-            timings,
-            lock,
     ):
-        with lock:
-            timings.time("lock")
-            indices = [full_queue.get() for _ in range(flags.batch_size)]
-            timings.time("dequeue")
+        #with lock:
+        #    timings.time("lock")
+        #    indices = [full_queue.get() for _ in range(flags.batch_size)]
+         #   timings.time("dequeue")
+        indices = [k for k in range(flags.batch_size)]
         batch = {
             key: torch.stack([buffers[key][m] for m in indices], dim=1) for key in buffers
         }
-        initial_agent_state = (
-            torch.cat(ts, dim=1)
-            for ts in zip(*[initial_agent_state_buffers[m] for m in indices])
-        )
-        timings.time("batch")
-        for m in indices:
-            free_queue.put(m)
-        timings.time("enqueue")
+        #initial_agent_state = (
+        #    torch.cat(ts, dim=1)
+        #    for ts in zip(*[initial_agent_state_buffers[m] for m in indices])
+        #)
+        #timings.time("batch")
+        #for m in indices:
+        #    free_queue.put(m)
+        #timings.time("enqueue")
 
         batch = {k: t.to(device=flags.device, non_blocking=True) for k, t in batch.items()}
-        initial_agent_state = tuple(
-            t.to(device=flags.device, non_blocking=True) for t in initial_agent_state
-        )
-        timings.time("device")
-        return batch, initial_agent_state
+        #initial_agent_state = tuple(
+        #    t.to(device=flags.device, non_blocking=True) for t in initial_agent_state
+        #)
+        #timings.time("device")
+        return batch, initial_agent_state_buffers
 
     def compute_loss(self, model_flags, task_flags, learner_model, batch, initial_agent_state, with_custom_loss=True):
         # Note the action_space_id isn't really used - it's used to generate an action, but we use the action that
         # was already computed and executed
-        learner_outputs, unused_state = learner_model(batch, task_flags.action_space_id, initial_agent_state)
+        learner_outputs, unused_state = self.learner_model(batch, task_flags.action_space_id, pickeda= batch['pik'])
 
         # Take final value function slice for bootstrapping.
         bootstrap_value = learner_outputs["baseline"][-1]
@@ -367,8 +367,8 @@ class Monobeast():
 
         # from https://github.com/MiniHackPlanet/MiniHack/blob/e124ae4c98936d0c0b3135bf5f202039d9074508/minihack/agent/polybeast/polybeast_learner.py#L243
         if model_flags.normalize_reward:
-            learner_model.update_running_moments(rewards)
-            rewards /= learner_model.get_running_std()
+            self.learner_model.update_running_moments(rewards)
+            rewards /= self.learner_model.get_running_std()
 
         if model_flags.reward_clipping == "abs_one":
             clipped_rewards = torch.clamp(rewards, -1, 1)
@@ -408,7 +408,7 @@ class Monobeast():
         }
 
         if with_custom_loss: # auxilary terms for continual learning
-            custom_loss, custom_stats = self.custom_loss(task_flags, learner_model, initial_agent_state, batch, vtrace_returns)
+            custom_loss, custom_stats = self.custom_loss(task_flags, self.learner_model, initial_agent_state, batch, vtrace_returns)
             total_loss += custom_loss
             stats.update(custom_stats)
 
@@ -426,37 +426,43 @@ class Monobeast():
             scheduler,
             lock,
     ):
-        """Performs a learning (optimization) step."""
-        with lock:
+
+
             # Only log the real batch of new data, not the manipulated version for training, so save it off
-            batch_for_logging = copy.deepcopy(batch)
+            batch_for_logging = copy.copy(batch)
+            batch_done_flags = batch_for_logging["done"] * ~torch.isnan(batch_for_logging["episode_return"])#new
+            episode_returns = batch_for_logging["episode_return"][batch_done_flags]#new
+            episode_rewards=batch_for_logging["episode_return"]
+
 
             # Prepare the batch for training (e.g. augmenting with more data)
             batch = self.get_batch_for_training(batch)
 
-            total_loss, stats, _, _ = self.compute_loss(model_flags, task_flags, learner_model, batch, initial_agent_state)
+            total_loss, stats, _, _ = self.compute_loss(model_flags, task_flags, None, batch,initial_agent_state)
 
             # The episode_return may be nan if we're using an EpisodicLifeEnv (for Atari), where episode_return is nan
             # until the end of the game, where a real return is produced.
-            batch_done_flags = batch_for_logging["done"] * ~torch.isnan(batch_for_logging["episode_return"])
-            episode_returns = batch_for_logging["episode_return"][batch_done_flags]
+            #batch_done_flags = batch_for_logging["done"] * ~torch.isnan(batch_for_logging["episode_return"])
+            #episode_returns = batch_for_logging["episode_return"][batch_done_flags]
 
             stats.update({
                 "episode_returns": tuple(episode_returns.cpu().numpy()),
                 "mean_episode_return": torch.mean(episode_returns).item(),
                 "total_loss": total_loss.item(),
+                #'episode_rewards':tuple(episode_rewards.cpu().numpy())
             })
 
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             total_loss.backward()
 
-            norm = nn.utils.clip_grad_norm_(learner_model.parameters(), model_flags.grad_norm_clipping)
+            norm = nn.utils.clip_grad_norm_(self.learner_model.parameters(), model_flags.grad_norm_clipping)
             stats["total_norm"] = norm.item()
 
-            optimizer.step()
+            self.optimizer.step()
             if scheduler is not None:
                 scheduler.step()
-            actor_model.load_state_dict(learner_model.state_dict())
+            self.actor_model.load_state_dict(self.learner_model.state_dict())
+            print(stats)
             return stats
 
     def create_buffer_specs(self, unroll_length, obs_shape, num_actions):
@@ -472,6 +478,7 @@ class Monobeast():
             uncertainty=dict(size=(T + 1,), dtype=torch.float32),
             last_action=dict(size=(T + 1,), dtype=torch.int64),
             action=dict(size=(T + 1,), dtype=torch.int64),
+            pik=dict(size=(T + 1,num_actions), dtype=torch.int64),
         )
         return specs
 
@@ -615,16 +622,29 @@ class Monobeast():
             json.dump(metadata, metadata_file)
 
     def load(self, output_path):
-
+        #print(output_path,os.path.dirname(output_path))
+        bak=None
+        m=os.path.join(os.path.dirname(output_path), "model.tar")
         model_file_path = os.path.join(output_path, "model.tar")
+        if os.path.exists(m):
+            model_file_path=m
+            bak=True
+            ori=os.path.dirname(output_path)
+
+
+        #model_file_path = os.path.join(output_path, "model.tar")
         if os.path.exists(model_file_path):
-            self.logger.info(f"Loading model from {output_path}")
+            self.logger.info(f"Loading model from {model_file_path}")
             try:
+                print(model_file_path,'model_file_path')
                 checkpoint = torch.load(model_file_path, map_location="cpu")
             except RuntimeError as e:
                 assert "PytorchStreamReader" in str(e)
                 self.logger.warn("Save file corrupted, resuming from backup. Likely the run ended during model save.")
-                model_file_path = os.path.join(output_path, "model_bak.tar")
+                if bak is not None:
+                    model_file_path = os.path.join(ori, "model_bak.tar")
+                else:
+                    model_file_path = os.path.join(output_path, "model_bak.tar")
                 checkpoint = torch.load(model_file_path, map_location="cpu")
 
             self.actor_model.load_state_dict(checkpoint["model_state_dict"])
@@ -657,7 +677,8 @@ class Monobeast():
 
             return 1 - min(epoch * T * B, task_flags.total_steps) / task_flags.total_steps
 
-        self._model_flags.use_scheduler=False
+
+#(device=self._model_flags.device)
         if self._model_flags.use_scheduler:
 
             self._scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
@@ -668,92 +689,54 @@ class Monobeast():
             self.logger.info("Loading scheduler state dict")
             self._scheduler.load_state_dict(self._scheduler_state_dict)
             self._scheduler_state_dict = None
-
+        autoT = None#AutoTokenizer.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert', use_fast=False)
+        auto_mtoken = None#AutoModel.from_pretrained('/scratch/nstevia/bug_localization/micro_codebert')
         # Add initial RNN state.
         initial_agent_state_buffers = []
-
-        for _ in range(self._model_flags.num_buffers):
-            state = self.actor_model.initial_state(batch_size=1)
-            for t in state:
-                t.share_memory_()
-            initial_agent_state_buffers.append(state)
-
-        # Setup actor processes and kick them offset
         self._actor_processes = []
-        ctx = mp.get_context("spawn") #mp.get_context("fork")
+        #ctx = mp.get_context("spawn") #mp.get_context("fork")
 
         # See: https://stackoverflow.com/questions/47085458/why-is-multiprocessing-queue-get-so-slow for why Manager
-        self.free_queue = py_mp.Queue()
-        self.full_queue = py_mp.Queue()
+        self.free_queue = None#py_mp.Manager().Queue()
+        self.full_queue = None#py_mp.Manager().Queue()
 
-        for i in range(self._model_flags.num_actors):
-            actor = ctx.Process(
-                target=self.act,
-                args=(
-                    self._model_flags,
-                    task_flags,
-                    i,
-                    self.free_queue,
-                    self.full_queue,
-                    self.actor_model,
-                    self.buffers,
-                    initial_agent_state_buffers,
-                ),
-            )
 
-            actor.start()
-            self._actor_processes.append(actor)
+        initial_agent_state_buffers=0
 
-        stat_keys = [
-            "total_loss",
-            "mean_episode_return",
-            "pg_loss",
-            "baseline_loss",
-            "entropy_loss",
-            "vtrace_vs_mean"
-        ]
-        self.logger.info("# Step\t%s", "\t".join(stat_keys))
 
-        step, collected_stats = self.last_timestep_returned, {}
-        self._stats_lock = threading.Lock()
-
-        def batch_and_learn(i, lock, thread_state, batch_lock, learn_lock, thread_free_queue, thread_full_queue):
+        def batch_and_learn():
             """Thread target for the learning process."""
             try:
                 nonlocal step, collected_stats
-                timings = prof.Timings()
+                #timings = prof.Timings()
 
                 while True:
                     # If we've requested a stop, indicate it and end the thread
-                    with thread_state.lock:
-                        if thread_state.state == LearnerThreadState.STOP_REQUESTED:
-                            thread_state.state = LearnerThreadState.STOPPED
-                            return
+                    # with thread_state.lock:
+                    #     if thread_state.state == LearnerThreadState.STOP_REQUESTED:
+                    #         thread_state.state = LearnerThreadState.STOPPED
+                    #         return
+                    #
+                    #     thread_state.state = LearnerThreadState.RUNNING
 
-                        thread_state.state = LearnerThreadState.RUNNING
-
-                    timings.reset()
+                    #timings.reset()
                     batch, agent_state = self.get_batch(
                         self._model_flags,
-                        thread_free_queue,
-                        thread_full_queue,
                         self.buffers,
                         initial_agent_state_buffers,
-                        timings,
-                        batch_lock,
                     )
                     stats = self.learn(
-                        self._model_flags, task_flags, self.actor_model, self.learner_model, batch, agent_state, self.optimizer, self._scheduler, learn_lock
+                        self._model_flags, task_flags, self.actor_model, self.learner_model, batch, agent_state, self.optimizer, self._scheduler, None
                     )
-                    timings.time("learn")
-                    with lock:
-                        step += T * B
-                        to_log = dict(step=step)
-                        to_log.update({k: stats[k] for k in stat_keys if k in stats})
-                        self.plogger.info(to_log)
+                    #timings.time("learn")
+
+                    step += T * B
+                    to_log = dict(step=step)
+                    to_log.update({k: stats[k] for k in stat_keys if k in stats})
+                    self.plogger.info(to_log)
 
                         # We might collect stats more often than we return them to the caller, so collect them all
-                        for key in stats.keys():
+                    for key in stats.keys():
                             if key not in collected_stats:
                                 collected_stats[key] = []
 
@@ -761,39 +744,66 @@ class Monobeast():
                                 collected_stats[key].extend(stats[key])
                             else:
                                 collected_stats[key].append(stats[key])
+                    break
             except Exception as e:
                 self.logger.error(f"Learner thread failed with exception {e}")
                 raise e
 
-            if i == 0:
-                self.logger.info("Batch and learn: %s", timings.summary())
+            #if i == 0:
+             #   self.logger.info("Batch and learn: %s", timings.summary())
 
-            thread_state.state = LearnerThreadState.STOPPED
+            #thread_state.state = LearnerThreadState.STOPPED
 
-        for m in range(self._model_flags.num_buffers):
-            self.free_queue.put(m)
+        #for m in range(self._model_flags.num_buffers):
+        #    self.free_queue.put(m)
 
-        threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
+        #threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
 
         # Create the id for this train loop, and only loop while it is the active id
-        assert self._train_loop_id_running is None, "Attempting to start a train loop while another is active."
+        #assert self._train_loop_id_running is None, "Attempting to start a train loop while another is active."
         train_loop_id = self._train_loop_id_counter
         self._train_loop_id_counter += 1
         self._train_loop_id_running = train_loop_id
         self.logger.info(f"Starting train loop id {train_loop_id}")
 
         timer = timeit.default_timer
-        try:
-            while self._train_loop_id_running == train_loop_id:
+        step, collected_stats = self.last_timestep_returned, {}
+        while True:#self._train_loop_id_running == train_loop_id:
                 start_step = step
                 start_time = timer()
-                time.sleep(self._model_flags.seconds_between_yields)
+                #time.sleep(self._model_flags.seconds_between_yields)
 
                 # Copy right away, because there's a race where stats can get re-set and then certain things set below
                 # will be missing (eg "step")
-                with self._stats_lock:
-                    stats_to_return = copy.deepcopy(collected_stats)
-                    collected_stats.clear()
+                #with self._stats_lock:
+                self.act(
+                    self._model_flags,
+                    task_flags,
+                    0,
+                    self.free_queue,
+                    self.full_queue,
+                    self.actor_model,
+                    self.buffers,
+                    initial_agent_state_buffers,
+                    autoT,
+                    None,
+                    {},
+                )
+                stat_keys = [
+                    "total_loss",
+                    "mean_episode_return",
+                    "pg_loss",
+                    "baseline_loss",
+                    "entropy_loss",
+                    "vtrace_vs_mean"
+                ]
+                self.logger.info("# Step\t%s", "\t".join(stat_keys))
+
+
+                batch_and_learn()
+                stats_to_return = copy.deepcopy(collected_stats)
+
+                collected_stats.clear()
 
                 sps = (step - start_step) / (timer() - start_time)
 
@@ -808,137 +818,194 @@ class Monobeast():
                         # Replace with the number we collected and the mean value, otherwise the logs are very verbose
                         stats_to_return[f"{key}_count"] = len(np.array(stats_to_return.get(key, [])))
                         stats_to_return[key] = np.array(stats_to_return.get(key, [np.nan])).mean()
-
-                self.logger.info(
-                    "Steps %i @ %.1f SPS. Mean return %f. Stats:\n%s",
-                    step,
-                    sps,
-                    mean_return,
-                    pprint.pformat(stats_to_return),
-                )
+                print('step, sps, mean_return',step,sps,mean_return)
+                #self.logger.info(
+               #     "Steps %i @ %.1f SPS. Mean return %f. Stats:\n%s",
+               #     step,
+                #    sps,
+                #    mean_return,
+                    #pprint.pformat(stats_to_return),
+               # )
                 stats_to_return["step"] = step
                 stats_to_return["step_delta"] = step - self.last_timestep_returned
 
-                try:
-                    video = None#self._videos_to_log.get(block=False)
-                    stats_to_return["video"] = video
-                except queue.Empty:
-                    pass
-                except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
-                    # Sometimes it seems like the videos_to_log socket fails. Since video logging is not
-                    # mission-critical, just let it go.
-                    self.logger.warning(f"Video logging socket seems to have failed with error {e}. Aborting video log.")
-                    pass
+                # try:
+                #     video = None#self._videos_to_log.get(block=False)
+                #     stats_to_return["video"] = video
+                # except queue.Empty:
+                #     pass
+                # except (FileNotFoundError, ConnectionRefusedError, ConnectionResetError, RuntimeError) as e:
+                #     # Sometimes it seems like the videos_to_log socket fails. Since video logging is not
+                #     # mission-critical, just let it go.
+                #     self.logger.warning(f"Video logging socket seems to have failed with error {e}. Aborting video log.")
+                #     pass
 
                 # This block sets us up to yield our results in batches, pausing everything while yielded.
-                if self.last_timestep_returned != step:
-                    self.last_timestep_returned = step
+                #if self.last_timestep_returned != step:
+                #     self.last_timestep_returned = step
 
-                    # Stop learn threads, they are recreated after yielding. 
-                    # Do this before the actors in case we need to do a last batch
-                    self.logger.info("Stopping learners")
-                    for thread_id, thread_state in enumerate(self._learner_thread_states):
-                        wait = False
-                        with thread_state.lock:
-                            if thread_state.state != LearnerThreadState.STOPPED and threads[thread_id].is_alive():
-                                thread_state.state = LearnerThreadState.STOP_REQUESTED
-                                wait = True
+                yield stats_to_return
 
-                        # Wait for it to stop, otherwise we have training overlapping with eval, and possibly
-                        # the thread creation below
-                        if wait:
-                            thread_state.wait_for([LearnerThreadState.STOPPED], timeout=30)
+                    # # Ensure everything is set back up to train
+                    # self.actor_model.train()
+                    # self.learner_model.train()
+                    #
+                    # # Resume the actors. If one is dead, replace it with a new one
+                    # for i in range(self._model_flags.num_actors):
+                    #     self.act(
+                    #         self._model_flags,
+                    #         task_flags,
+                    #         i,
+                    #         self.free_queue,
+                    #         self.full_queue,
+                    #         self.actor_model,
+                    #         self.buffers,
+                    #         initial_agent_state_buffers,
+                    #         autoT,
+                    #         None,
+                    #         report_token,
+                    #     )
+                    # #if self._model_flags.pause_actors_during_yield:
+                    # #    self.resume_actor_processes(ctx, task_flags, self._actor_processes, self.free_queue, self.full_queue,
+                    # #                                initial_agent_state_buffers)
+                    #
+                    # # Resume the learners by creating new ones
+                    # self.logger.info("Restarting learners")
+                    # threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
+                    # self.logger.info("Restart complete")
+                    #
+                    # for m in range(self._model_flags.num_buffers):
+                    #     self.free_queue.put(m)
+                    # self.logger.info("Free queue re-populated")
 
-                    # The actors will keep going unless we pause them, so...do that.
-                    if self._model_flags.pause_actors_during_yield:
-                        for actor in self._actor_processes:
-                            psutil.Process(actor.pid).suspend()
+            #except KeyboardInterrupt:
+             #   pass
 
-                    # Make sure the queue is empty (otherwise things can get dropped in the shuffle)
-                    # (Not 100% sure relevant but:) https://stackoverflow.com/questions/19257375/python-multiprocessing-queue-put-not-working-for-semi-large-data
-                    while not self.free_queue.empty():
-                        try:
-                            self.free_queue.get(block=False)
-                        except queue.Empty:
-                            # Race between empty check and get, I guess
-                            break
+        #finally:
+         #   self._cleanup_parallel_workers()
+         #   for thread in threads:
+          #      thread.join()
+          #  self.logger.info("Learning finished after %d steps.", step)
 
-                    while not self.full_queue.empty():
-                        try:
-                            self.full_queue.get(block=False)
-                        except queue.Empty:
-                            # Race between empty check and get, I guess
-                            break
-
-                    yield stats_to_return
-
-                    # Ensure everything is set back up to train
-                    self.actor_model.train()
-                    self.learner_model.train()
-
-                    # Resume the actors. If one is dead, replace it with a new one
-                    if self._model_flags.pause_actors_during_yield:
-                        self.resume_actor_processes(ctx, task_flags, self._actor_processes, self.free_queue, self.full_queue,
-                                                    initial_agent_state_buffers)
-
-                    # Resume the learners by creating new ones
-                    self.logger.info("Restarting learners")
-                    threads, self._learner_thread_states = self.create_learn_threads(batch_and_learn, self._stats_lock, self.free_queue, self.full_queue)
-                    self.logger.info("Restart complete")
-
-                    for m in range(self._model_flags.num_buffers):
-                        self.free_queue.put(m)
-                    self.logger.info("Free queue re-populated")
-
-        except KeyboardInterrupt:
-            pass
-
-        finally:
-            self._cleanup_parallel_workers()
-            for thread in threads:
-                thread.join()
-            self.logger.info("Learning finished after %d steps.", step)
-
+    def to_one_hot(self,array, max_size):
+        temp = np.ones(max_size)
+        temp[array] = 0
+        return np.expand_dims(temp, axis=0)
+    @staticmethod
+    def calculate_top_k(source, target, counts):
+        return
     @staticmethod
     def _collect_test_episode(pickled_args):
-        task_flags, logger, model = cloudpickle.loads(pickled_args)
+        task_flags, logger, model,outputdir = cloudpickle.loads(pickled_args)
 
         flag_injected_bug_spotted=[False,False]
         gym_env, seed = Utils.make_env(task_flags.env_spec, create_seed=True)
         logger.info(f"Environment and libraries setup with seed {seed}")
+        xshape=gym_env.reset().shape
+        if len(xshape) == 2:
+            gym_env.file_path=os.path.join(outputdir, str(gym_env.project_list[1]))
         env = environment.Environment(gym_env)
-        observation = env.initial()
+        #observation = env.initial()
         done = False
         step = 0
         returns = []
         total_flags=[]
+        all_rr = []
+        counts = None
+        import time
+        start = time.time()
+        st = 0
+        total_e = 0
+        all_map = []
+        map_per_r = []
+        final_top = [0, 0, 0]
+        results_test = os.path.join(outputdir, 'results_test.txt')
+        fi = open(results_test, 'a+')
+        fi.write('algo,project_name,reward,time,episode,steps,mrr,map,actualr,top1,top5,top10' + '\n')
+        fi.close()
+        print('icicicicici')
+        if len(xshape)==2:
+            for _ in range(env.gym_env.suppoerted_len):
+                observation = env.initial()
+                done = False
+                total_e += 1
+                rew_all = 0
+                all_rr.append(-100)
+                while not done:
+                    # if task_flags.mode == "test_render":
+                    #    env.gym_env.render()
+                    agent_outputs = model(observation, task_flags.action_space_id)
+                    policy_outputs, _ = agent_outputs
+
+                    observation = env.step(policy_outputs["action"],return_rr=True)
+                    all_map.append(observation["map"])
+                    #rew_all += reward
+                    step += 1
+                    if all_rr[-1] < observation["rr"]:
+                        all_rr[-1] = observation["rr"]
+                    #counts = self.calculate_top_k(source=env.gym_env.picked, target=env.gym_env.match_id, counts=counts)
+                    done = observation["done"].item() #and not torch.isnan(observation["episode_return"])
+
+                    # NaN if the done was "fake" (e.g. Atari). We want real scores here so wait for the real return.
+                    if done:
+
+                        returns.append(observation["episode_return"].item())
+                        logger.info(
+                            "Episode ended after %d steps. Return: %.1f",
+                            observation["episode_step"].item(),
+                            observation["episode_return"].item(),
+                        )
+                #env.close()
+                map_per_r.append(observation["map"])
+                temp = np.array(all_rr)
+                temp = temp[temp > 0]
+                top = []
+
+                for u in [1, 5, 10]:
+                    cc = 0
+                    for uu in range(u):
+                        if env.gym_env.picked[uu] in env.gym_env.match_id:
+                            cc = 1
+                    top.append(cc)
+                final_top[0], final_top[1], final_top[2] = final_top[0] + top[0], final_top[1] + top[1], final_top[2] + \
+                                                           top[2]
+                fi = open(results_test, 'a+')
+                fi.write(
+                    'options.algo' + "," + str(env.gym_env.project_list[0]) + "," + str(observation["episode_return"].item()) + "," + str(
+                        -start + time.time()) + "," + str(
+                        total_e) + "," + str(observation["episode_step"].item()) + "," + str(temp.mean()) + "," + str(
+                        np.mean(np.array(map_per_r))) + "," + str(final_top[0] / env.gym_env.suppoerted_len) + "," + str(
+                        final_top[1] / env.gym_env.suppoerted_len) + "," + str(final_top[2] / env.gym_env.suppoerted_len) + '\n')
+                fi.close()
+            return step, returns, total_flags
         while not done:
-            if task_flags.mode == "test_render":
-                env.gym_env.render()
+            #if task_flags.mode == "test_render":
+            #    env.gym_env.render()
             agent_outputs = model(observation, task_flags.action_space_id)
             policy_outputs, _ = agent_outputs
 
             observation = env.step(policy_outputs["action"])
             step += 1
+
             if len(gym_env.reset().shape)==1:
                 if -0.5 < observation['frame'][0] < -0.45 and not flag_injected_bug_spotted[0]:
                     flag_injected_bug_spotted[0] = True
                 if 0.45 < observation['frame'][0] < 0.5 and not flag_injected_bug_spotted[1]:
                     flag_injected_bug_spotted[1] = True
-            done = observation["done"].item() and not torch.isnan(observation["episode_return"])
+            done = observation["done"].item() #and not torch.isnan(observation["episode_return"])
 
             # NaN if the done was "fake" (e.g. Atari). We want real scores here so wait for the real return.
             if done:
 
                 returns.append(observation["episode_return"].item())
-                total_flags.append(flag_injected_bug_spotted)
-                flag_injected_bug_spotted = [False, False]
+                if len(gym_env.reset().shape) == 1:
+                    total_flags.append(flag_injected_bug_spotted)
+                    flag_injected_bug_spotted = [False, False]
                 logger.info(
                     "Episode ended after %d steps. Return: %.1f",
                     observation["episode_step"].item(),
                     observation["episode_return"].item(),
                 )
-
         env.close()
         return step, returns,total_flags
 
@@ -946,31 +1013,166 @@ class Monobeast():
         if not self._model_flags.no_eval_mode:
             self.actor_model.eval()
 
-        returns = []
+        returs = []
         all_f=[]
         step = 0
+        if 'bug_log_test' in task_flags.env_spec:
+            print('alalalslssld')
+            flag_injected_bug_spotted = [False, False]
+            gym_env, seed = Utils.make_env(task_flags.env_spec, create_seed=True)
+            self.logger.info(f"Environment and libraries setup with seed {seed}")
+            xshape = gym_env.reset().shape
+            if len(xshape) == 2:
+                gym_env.file_path = os.path.join(self._model_flags.output_dir, str(gym_env.project_list[1]))
+            env = environment.Environment(gym_env)
+            # observation = env.initial()
+            done = False
+            step = 0
+            returns = []
+            total_flags = []
+            all_rr = []
+            counts = None
+            import time
+            start = time.time()
+            st = 0
+            total_e = 0
+            all_map = []
+            map_per_r = []
+            final_top = [0, 0, 0]
+            results_test = os.path.join(self._model_flags.output_dir, 'results_test.txt')
+            fi = open(results_test, 'a+')
+            fi.write('algo,project_name,reward,time,episode,steps,mrr,map,actualr,top1,top5,top10' + '\n')
+            fi.close()
+            box_test = os.path.join(self._model_flags.output_dir, 'box_test.txt')
+            fi = open(box_test, 'a+')
+            fi.write('algo,project_name,bug_id,mrr,map,top1,top5,top10' + '\n')
+            fi.close()
+            print('icicicicici')
+            if len(xshape) == 2:
+                for _ in range(env.gym_env.suppoerted_len):
+                    observation = env.initial()
+                    done = False
+                    total_e += 1
+                    rew_all = 0
+                    all_rr.append(-100)
+                    pre_act=-1
+                    pik=[]
+                    for h in range(10000):
+                        # if task_flags.mode == "test_render":
+                        #    env.gym_env.render()
+                        prev_obs=observation['frame']
+                        temp_action = torch.from_numpy(self.to_one_hot(pik, max_size=env.gym_env.action_space.n)).to(
+                            observation['frame'].device).type(torch.float)
 
+                        agent_outputs = self.actor_model(observation, task_flags.action_space_id,pickeda=temp_action)
+                        policy_outputs, _ = agent_outputs
+
+
+                        #if policy_outputs["action"].item()==pre_act:
+                         #   continue
+
+                        observation = env.step(policy_outputs["action"], return_rr=True)
+                        pik.append(policy_outputs["action"].item())
+                        pre_act=policy_outputs["action"].item()
+                        #all_map.append(observation["map"])
+                        # rew_all += reward
+                        step += 1
+
+                        if all_rr[-1] < observation["rr"]:
+                            all_rr[-1] = observation["rr"]
+                        # counts = self.calculate_top_k(source=env.gym_env.picked, target=env.gym_env.match_id, counts=counts)
+                        done = observation["done"].item()  # and not torch.isnan(observation["episode_return"])
+
+                        # NaN if the done was "fake" (e.g. Atari). We want real scores here so wait for the real return.
+                        if done:
+                            returns.append(observation["episode_return"].item())
+                            self.logger.info(
+                                "Episode ended after %d steps. Return: %.1f",
+                                observation["episode_step"].item(),
+                                observation["episode_return"].item(),
+                            )
+                            break
+                    # env.close()
+                    real_fix = 0
+                    precision_at_k = []
+                    for kk in range(len(observation["pik"])):
+                        if observation["pik"][kk] in observation['match']:
+                            real_fix += 1
+                        precision_at_k.append(real_fix / (kk + 1))
+                        all_map.append(precision_at_k)
+                    map_per_r.append(np.mean(np.array(precision_at_k)))
+                    #map_per_r.append(observation["map"])
+                    temp = np.array(all_rr)
+                    temp = temp[temp > 0]
+                    top = []
+
+                    for u in [1, 5, 10]:
+                        cc = 0
+                        for uu in range(u):
+                            print(uu,observation["pik"],observation['match'])
+                            if len(observation["pik"])>=uu+1: #if len(env.gym_env.picked)>=uu+1:
+                                if observation["pik"][uu] in observation['match']:#if env.gym_env.picked[uu] in env.gym_env.match_id:
+                                    cc += 1
+                        top.append(cc)
+                    final_top[0], final_top[1], final_top[2] = final_top[0] + top[0], final_top[1] + top[1], final_top[
+                        2] + \
+                                                               top[2]
+                    ret = all_rr[-1] if all_rr[-1] > 0 else -1
+                    fi = open(box_test, 'a+')
+                    fi.write(
+                        'options.algo' + "," + str(env.gym_env.project_list[0]) + "," + str(total_e) + "," + str(ret) + "," + str(
+                            map_per_r[-1]) + "," + str(top[0]) +
+                        "," + str(top[1]) + "," + str(top[2]) + '\n')
+                    fi.close()
+                    fi = open(results_test, 'a+')
+                    fi.write(
+                        'options.algo' + "," + str(env.gym_env.project_list[0]) + "," + str(
+                            observation["episode_return"].item()) + "," + str(
+                            -start + time.time()) + "," + str(
+                            total_e) + "," + str(observation["episode_step"].item()) + "," + str(
+                            temp.mean()) + "," + str(
+                            np.mean(np.array(map_per_r))) + "," + str(
+                            final_top[0] / env.gym_env.suppoerted_len) + "," + str(
+                            final_top[1] / env.gym_env.suppoerted_len) + "," + str(
+                            final_top[2] / env.gym_env.suppoerted_len) + '\n')
+                    fi.close()
+                #return step, returns, total_flags
+
+            returs.extend(returns)
+            all_f.extend(total_flags)
+            stats = {"episode_returns": returs, "step": step, "num_episodes": len(returns), "all_flags": all_f}
+            yield stats
+        else:
         # Break the number of episodes we need to run up into batches of num_parallel, which get run concurrently
-        for batch_start_id in range(0, num_episodes, self._model_flags.eval_episode_num_parallel):
-            # If we are in the last batch, only do the necessary number, otherwise do the max num in parallel
-            batch_num_episodes = min(num_episodes - batch_start_id, self._model_flags.eval_episode_num_parallel)
-
-            with Pool(processes=batch_num_episodes) as pool:
-                async_objs = []
+            for batch_start_id in range(0, num_episodes, self._model_flags.eval_episode_num_parallel):
+                # If we are in the last batch, only do the necessary number, otherwise do the max num in parallel
+                batch_num_episodes = min(num_episodes - batch_start_id, self._model_flags.eval_episode_num_parallel)
                 for episode_id in range(batch_num_episodes):
-                    pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model))
-                    async_obj = pool.apply_async(self._collect_test_episode, (pickled_args,))
-                    async_objs.append(async_obj)
+                    pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model,self._model_flags.output_dir))
 
-                for async_obj in async_objs:
-                    episode_step, episode_returns,all_flags = async_obj.get()
+                    episode_step, episode_returns, all_flags=self._collect_test_episode(pickled_args)
+                    #episode_step, episode_returns, all_flags = async_obj.get()
                     step += episode_step
                     returns.extend(episode_returns)
                     all_f.extend(all_flags)
+                self.logger.info(
+                    "Average returns over %i episodes: %.1f", len(returns), sum(returns)
+                )
+                stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns), "all_flags": all_f}
+                # with Pool(processes=batch_num_episodes) as pool:
+                #     async_objs = []
+                #     for episode_id in range(batch_num_episodes):
+                #         pickled_args = cloudpickle.dumps((task_flags, self.logger, self.actor_model))
+                #         async_obj = pool.apply_async(self._collect_test_episode, (pickled_args,))
+                #         async_objs.append(async_obj)
+                #
+                #     for async_obj in async_objs:
+                #         episode_step, episode_returns,all_flags = async_obj.get()
+                #         step += episode_step
+                #         returns.extend(episode_returns)
+                #         all_f.extend(all_flags)
 
-        self.logger.info(
-            "Average returns over %i episodes: %.1f", len(returns), sum(returns) / len(returns)
-        )
-        stats = {"episode_returns": returns, "step": step, "num_episodes": len(returns),"all_flags": all_f}
 
-        yield stats
+
+
+                yield stats

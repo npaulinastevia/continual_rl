@@ -61,7 +61,21 @@ class ArgparseManager(object):
         argparser = ArgparseManager()
         configuration_loader = ConfigurationLoader(available_policies=available_policies,
                                                    available_experiments=available_experiments)
+        print(raw_args,'raw args')
+        if 'test' in raw_args[3]:
+            directory=raw_args[5]
+            dirs = [d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))]
 
+            # Sort directories by modification time
+            dirs.sort(key=lambda x: os.path.getmtime(os.path.join(directory, x)), reverse=True)
+
+            # Return the full path of the newest directory
+            if dirs:
+                raw_args[5]=str(os.path.join(directory, dirs[0]))
+            else:
+                assert False
+        print(raw_args, 'raw args')
+      
         args, extras = argparser.config_mode_parser.parse_known_args(raw_args)
 
         #if 'config-file' in raw_args:
@@ -86,8 +100,6 @@ class ArgparseManager(object):
 
             # Extras is a list in the form ["--arg1", "val1", "--arg2", "val2"]. Convert it to a dictionary
             raw_experiment = {extras[i].replace('--', ''): extras[i + 1] for i in range(0, len(extras), 2)}
-
-            raw_experiment={'policy': 'ewc', 'experiment': 'bug_loc_multiple'}
 
             if "experiment" not in raw_experiment:
                 raise ArgumentMissingException("--experiment required in command-line mode")

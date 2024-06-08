@@ -156,13 +156,19 @@ class TaskBase(ABC):
 
         import time
         import config_
-
+        epf=config_.episode
+        if 'test' in task_spec.env_spec:
+            epf=1
         while task_timesteps < task_spec.num_timesteps:
-            if self.episode>=config_.episode:
+            if task_timesteps>=epf:
                 break
+            #if self.episode>=config_.episode:
+            #    break
 
             # all_env_data is a list of timestep_datas
-            print(task_timesteps,'task_timesteps')
+            print(task_timesteps,task_spec.env_spec,'task_timesteps')
+
+
             if task_spec.eval_mode:
                 timesteps, all_env_data, returns_to_report, logs_to_report,flags = environment_runner.collect_data(task_spec)
             else:
@@ -192,7 +198,9 @@ class TaskBase(ABC):
                         f.write('\n')
                         f.close()
                 self.episode+=1
-                if self.episode >= config_.episode:
+                #if self.episode >= config_.episode:
+                 #   break
+                if task_timesteps >= config_.episode:
                     break
             if not task_spec.eval_mode:
                 train_logs = policy.train(all_env_data)

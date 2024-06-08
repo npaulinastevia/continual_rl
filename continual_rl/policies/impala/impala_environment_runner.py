@@ -3,7 +3,6 @@ from continual_rl.utils.utils import Utils
 from dotmap import DotMap
 import torch
 import os
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from transformers import AutoModel, AutoTokenizer
 
 class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
@@ -134,6 +133,7 @@ class ImpalaEnvironmentRunner(EnvironmentRunnerBase):
                 video_log = self._render_video(task_spec.preprocessor, stats["video"])
                 if video_log is not None:
                     logs_to_report.extend(video_log)
+
         if task_spec.eval_mode:
             return timesteps, all_env_data, rewards_to_report, logs_to_report,all_F
         return timesteps, all_env_data, rewards_to_report, logs_to_report

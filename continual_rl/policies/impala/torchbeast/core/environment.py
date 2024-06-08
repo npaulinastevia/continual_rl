@@ -30,6 +30,7 @@ class Environment:
         self.episode_return = None
         self.episode_step = None
 
+
     def initial(self):
         initial_reward = torch.zeros(1, 1)
         # This supports only single-tensor actions ATM.
@@ -61,12 +62,20 @@ class Environment:
 
         )
 
-    def step(self, action):
-        frame, reward, done, prior_info = self.gym_env.step(action.item())
+    def step(self, action,return_rr=False):
+
+        if return_rr:
+            frame, reward, done, prior_info,rr, map = self.gym_env.step(action.item(), return_rr=return_rr)
+            pik=self.gym_env.picked
+            match=self.gym_env.match_id
+        else:
+            frame, reward, done, prior_info = self.gym_env.step(action.item())
+            rr, map=None,None
         self.episode_step += 1
         self.episode_return += reward
         episode_step = self.episode_step
         episode_return = self.episode_return
+
         if done:
             frame = self.gym_env.reset()
             self.episode_return = torch.zeros(1, 1)
@@ -91,15 +100,28 @@ class Environment:
             frame = _format_frame(frame)
         reward = torch.tensor(reward).view(1, 1)
         done = torch.tensor(done).view(1, 1)
-
-        return dict(
-            frame=frame,
-            reward=reward,
-            done=done,
-            episode_return=episode_return,
-            episode_step=episode_step,
-            last_action=action,
-        )
+        if return_rr:
+            return dict(
+                frame=frame,
+                reward=reward,
+                done=done,
+                episode_return=episode_return,
+                episode_step=episode_step,
+                last_action=action,
+                rr=rr,
+                map=map,
+                pik=pik,
+                match=match
+            )
+        else:
+            return  dict(
+                frame=frame,
+                reward=reward,
+                done=done,
+                episode_return=episode_return,
+                episode_step=episode_step,
+                last_action=action,
+            )
 
     def close(self):
         self.gym_env.close()

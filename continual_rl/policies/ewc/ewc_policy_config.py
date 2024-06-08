@@ -7,8 +7,8 @@ class EWCPolicyConfig(ImpalaPolicyConfig):
     def __init__(self):
         super().__init__()
         # following parameters specified by Progress&Compress, see appendix C.2
-        self.batch_size =1# 20
-        self.unroll_length =1# 20
+        self.batch_size =20# 20
+        self.unroll_length =32# 20
         self.epsilon = 0.1  # RMSProp epsilon
         self.learning_rate = 0.0006
         self.entropy_cost = 0.01
@@ -16,13 +16,13 @@ class EWCPolicyConfig(ImpalaPolicyConfig):
         self.baseline_cost = 0.5
         self.discounting = 0.99
 
-        self.replay_buffer_frames = 10#int(1e6)  # save a buffer per task for computing Fisher estimates
+        self.replay_buffer_frames = int(1e6)  # save a buffer per task for computing Fisher estimates
         self.large_file_path = str(self._output_dir)  # No default, since it can be very large and we want no surprises
 
         self.n_fisher_samples = 100  # num of batches to draw to recompute the diagonal of the Fisher
 
         self.ewc_lambda = 500  # "tuned choosing from [500, 1000, 1500, 2000, 2500, 3000]? exact value not specified by Progress & Compress"
-        self.ewc_per_task_min_frames = 20#int(20e6)  # "EWC penalty is only applied after 20 million frames per game" (from original EWC paper)
+        self.ewc_per_task_min_frames = int(20e6)  # "EWC penalty is only applied after 20 million frames per game" (from original EWC paper)
 
         self.online_ewc = False
         self.online_gamma = None

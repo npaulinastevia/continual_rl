@@ -50,8 +50,11 @@ def get_single_atari_task(task_id, action_space_id, env_name, num_timesteps, max
     if 'CartPole' in env_name:
         return CartPoleTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
     if "bug_log" in env_name:
-
-        return BuglogTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=config_.eval_mode)
+        if env_name[3]=='0':
+            evalm=False
+        else:
+            evalm = True
+        return BuglogTask(task_id=task_id, action_space_id=action_space_id, env_spec=env_name, num_timesteps=num_timesteps, time_batch_size=None, eval_mode=evalm)
         #return LTREnvV2(data_path=train_data_path, model_path="microsoft/codebert-base",
          #          tokenizer_path="microsoft/codebert-base", action_space_dim=31, report_count=100, max_len=512,
          #          use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])

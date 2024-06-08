@@ -6,11 +6,28 @@ import pandas as pd
 from gym import spaces
 import torch
 import zlib
+from sklearn.preprocessing import StandardScaler
+import torch.nn as nn
+import torch.optim as optim
 import random
 from transformers import AutoModel, AutoTokenizer
 from pathlib import Path
 import math
 
+class LogisticRegression(nn.Module):
+    def __init__(self, input_size):
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(input_size, 1)
+        self.predict=None
+    def forward(self, x):
+        out=self.linear(x)
+        self.predict=out
+        out = torch.sigmoid(out)
+        return out
+def to_one_hot(array, max_size):
+    temp = np.ones(max_size)
+    temp[array] = 0
+    return np.expand_dims(temp, axis=0)
 
 def precision_at_k(r, k):
     assert k >= 1
@@ -30,7 +47,7 @@ import os
 #os.environ["TOKENIZERS_PARALLELISM"] = "false"
 class LTREnv(gym.Env):
     def __init__(self, data_path, model_path, tokenizer_path, action_space_dim, report_count, max_len=512, use_gpu=True,
-                 file_path="", project_list=None, test_env=False, estimate=False):
+                 file_path="", project_list=None, test_env=False, estimate=False,non_original=True,reg_path=''):
         super(LTREnv, self).__init__()
 
         if use_gpu:
@@ -67,8 +84,16 @@ class LTREnv(gym.Env):
         self.picked = []
         self.remained = []
         self.estimate = estimate
+        self.non_original=non_original
         self.irr = None
         self.t = 0
+        modelr = LogisticRegression(2)
+        if self.non_original:
+            state_dict = torch.load(
+                reg_path)  # (file_path + model_path)
+            modelr.load_state_dict(state_dict=state_dict)
+            self.regrem = modelr.to(self.dev)
+        #self.scaler = StandardScaler()
         self.suppoerted_len = None
         self.match_id = None
 
@@ -76,6 +101,7 @@ class LTREnv(gym.Env):
         self.counter = 0
         self.output_path = None
         self.current_act_id = None
+
         #########added#############
 
 
@@ -96,6 +122,11 @@ class LTREnv(gym.Env):
     def __get_ids(self):
 
         self.df = pd.read_csv(self.data_path)
+
+        #if self.data_path=='/scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv':
+        #    self.df.rename(columns={'id': 'id_old'}, inplace=True)
+         #   self.df.rename(columns={'bug_index': 'id'}, inplace=True)
+
         # irr=self.df[self.df['cid'] == self.picked[-1]]['file_content'].tolist()
 
         # self.df = self.df.assign(project_name=['AspectJ']*len(self.df['bug_id'].tolist()))
@@ -137,13 +168,15 @@ class LTREnv(gym.Env):
             self.df = pd.concat([matched, not_matched]).sample(frac=1).reset_index(drop=True)
 
         id_list = self.df.groupby('id')['cid'].count()
+        #id_list1=id_list
         id_list = id_list[id_list == int(self.action_space_dim)].index.to_list()
-
+        #if len(id_list)==0:
+        #    id_list = id_list1[id_list1 == 30].index.to_list()
         self.suppoerted_len = len(id_list)
         if self.report_count is None:
             self.report_count = self.suppoerted_len
         id_list = self.df[(self.df['id'].isin(id_list)) & (self.df['match'] == 1)]['id'].unique().tolist()
-        random.seed(59)  # 13
+        #random.seed(59)  # 13
         self.sampled_id = random.sample(id_list, min(len(id_list), self.report_count))
 
 
@@ -208,22 +241,52 @@ class LTREnv(gym.Env):
 
 
     def step(self, action, return_rr=False):
+
+        # if action == 30:
+        #     if len(self.filtered_df['cid'].tolist()) == 30:
+        #
+        #         temp = self.filtered_df['cid'].tolist()[29]
+        #     else:
+        #         temp = self.filtered_df['cid'].tolist()[action]
+        # else:
+        #     temp = self.filtered_df['cid'].tolist()[action]
+
         temp = self.filtered_df['cid'].tolist()[action]
+
         info = {"invalid": False}
         obs, reward, done = None, None, None
+        info['match'] = self.match_id
+        #metric = self.filtered_df['churn'].tolist()[action] #pre-r_bugs cause an explosion of gradients, todo if trouble: remove if else at nets file
+        #inp = torch.tensor(self.scaler.fit_transform(
+        #    [[self.filtered_df['churn'].tolist()[action], self.filtered_df['pre_r_bugs'].tolist()[action]]]),
+        #                   dtype=torch.float32).to(self.dev)
+        if self.non_original:
+            inp = torch.tensor([self.filtered_df['churn'].tolist()[action], self.filtered_df['pre_r_bugs'].tolist()[action]],
+                                   dtype=torch.float32).to(self.dev)
+            mediary = self.regrem(inp)
+            metric = mediary.item()#self.regrem.predict.item()  # self.filtered_df[self.metric].tolist()[action] 'churn', 'pre_r_bugs'
+            fi = open('metric' + '.txt', 'a+')
+            fi.write(str(metric)+ '\n')
+            fi.close()
+        else:
+            metric=0
+
         if temp in self.remained:
             self.picked.append(temp)
+            info['pik'] = self.picked
             self.remained.remove(temp)
             obs = self.__get_observation()
             reward, rr, map = self.__calculate_reward(return_rr=return_rr)
+            reward = reward + metric
             done = self.t == len(self.filtered_df)
         else:
             info['invalid'] = True
             obs = self.previous_obs
             rr = -1
-            done = True  # self.t == len(self.filtered_df)
+            done = True
             # ToDo: Check it
             reward = -6 if len(self.picked) < self.action_space.n else 0
+            reward = reward + metric
             _, _, map = self.__calculate_reward(return_rr=return_rr)
 
         if return_rr:
@@ -280,10 +343,10 @@ class LTREnv(gym.Env):
 
 class LTREnvV2(LTREnv):
     def __init__(self, data_path, model_path, tokenizer_path, action_space_dim, report_count, max_len=512, use_gpu=True,
-                 caching=False, file_path="", project_list=None, test_env=False, estimate=False,model_flags=None):
+                 caching=False, file_path="", project_list=None, test_env=False, estimate=False,model_flags=None,non_original=True,reg_path=''):
         super(LTREnvV2, self).__init__(data_path, model_path, tokenizer_path, action_space_dim, report_count,
                                        max_len=max_len, use_gpu=use_gpu, file_path=file_path, project_list=project_list,
-                                       test_env=test_env, estimate=estimate)
+                                       test_env=test_env, estimate=estimate,non_original=non_original,reg_path=reg_path)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
                                             shape=(31,1025), dtype=np.float32)#shape=(31, 1025)
         self.all_embedding = []
@@ -342,7 +405,11 @@ class LTREnvV2(LTREnv):
                             code_token['attention_mask'])
 
                     final_rep = np.concatenate([report_embedding.cpu(), code_embedding.cpu(), [[1e-7]]], axis=1)[0]
+                    #last=final_rep
                     self.all_embedding.append(final_rep)
+
+                #if len(self.all_embedding)<31:
+                #    self.all_embedding.append(last)
 
                 if self.caching:
 
@@ -382,6 +449,7 @@ class LTREnvV3(LTREnv):
                                             shape=(31, 1025), dtype=np.float32)
         self.all_embedding = []
         self.caching = caching
+
 
     def reset(self):
         self.all_embedding = []

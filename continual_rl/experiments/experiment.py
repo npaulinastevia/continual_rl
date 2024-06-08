@@ -112,7 +112,7 @@ class Experiment(object):
         start_cycle_id = run_metadata.cycle_id
         start_task_id = run_metadata.task_id
         start_task_timesteps = run_metadata.task_timesteps
-
+        print(start_task_id,'start_task_id')
         # Only updated after a task is complete. To get the current within-task number, add task_timesteps
         total_train_timesteps = run_metadata.total_train_timesteps
 

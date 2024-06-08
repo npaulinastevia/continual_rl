@@ -40,7 +40,7 @@ class Utils(object):
         return logger
 
     @classmethod
-    def make_env(cls, env_spec, create_seed=False, seed_to_set=None, max_tries=2):
+    def make_env(cls, env_spec, create_seed=False, seed_to_set=None, max_tries=2,model_flags=None):
         """
         Seeding is done at the time of environment creation partially to make sure that every env gets its own seed.
         If you seed before forking processes, the processes will all be seeded the same way, which is generally
@@ -58,19 +58,86 @@ class Utils(object):
         import config_
         import time
         id_txt = str(int(time.time()))
+        #reg_path='/scratch/nstevia/regression_model_develop/Aspectj/final_logistic_regression_model.pt'
+        #test_AspectJ_train_before_fix_aft4er_bug_report.csv' AspectJ_test_for_mining_before.csv
+        #path1='/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/train_AspectJ_train_before_fix_aft4er_bug_report.csv'#/scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv'
+        #path_test='/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/test_AspectJ_train_before_fix_aft4er_bug_report.csv'#'/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_test_for_mining_before.csv'#'/scratch/nstevia/continual_rl/AspectJ_test_withcommit.csv'#AspectJ_test_withcommit.csv'  test_AspectJ_train_before_fix_aft4er_bug_report.csv
+        #path2='/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_train_for_mining_before.csv'
         #f = open('results_cart_trainCRL_' + env_spec + '.txt', 'a+')
         #f.write('Environments,Algorithms,x1,reward,steps,time,episodes,task_id,done' + '\n')
         #f.close()
         #f = open('results_cart_testCRL_' + env_spec + '.txt', 'a+')
-        #f.write('Environments,Algorithms,x1,reward,steps,time,episodes,env_id,task_id,done' + '\n')
+        #f.write('Environments,Algorithms,x1,reward,steps,time,episodes,env_id,task_id,done' + '\n') train_with_metrics_SWT_dataset_baseline.csv
         #f.close()
-        train_data_path = config_.train_data_path
+        #train_data_path = config_.train_data_path
+        #1 SWT, 2 JDT, 3 BIRT, 4 ECLISPE, 5 tomcat
         file_path = config_.file_path
         Path(file_path).mkdir(parents=True, exist_ok=True)
-        project_name = config_.project_name
-        print(file_path)
-        mpath ="microsoft/codebert-base" #'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
-        print(file_path,train_data_path,env_spec,"envvvfd")
+        print(env_spec,'envspec')
+
+        if env_spec[0]=='0':
+            non_original = False
+        else:
+            non_original = True
+        if env_spec[1]=='1':
+            project_name = 'SWT'
+            reg_path='/scratch/nstevia/regression_model_develop/swt/final_logistic_regression_model.pt'
+            #test_AspectJ_train_before_fix_aft4er_bug_report.csv' AspectJ_test_for_mining_before.csv
+            path1='/scratch/nstevia/bug_rep_paulina/train_all_non_baseline_with_metrics_SWT_dataset_baseline.csv'#/scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv'
+            if env_spec[2]=='0':
+                path_test='/scratch/nstevia/bug_rep_paulina/test_with_metrics_SWT_dataset_baseline.csv'#'/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_test_for_mining_before.csv'#'/scratch/nstevia/continual_rl/AspectJ_test_withcommit.csv'#AspectJ_test_withcommit.csv'  test_AspectJ_train_before_fix_aft4er_bug_report.csv
+            else:
+                path_test = '/scratch/nstevia/bug_rep_paulina/test_all_non_baseline_with_metrics_SWT_dataset_baseline.csv'
+            path2='/scratch/nstevia/bug_rep_paulina/train_with_metrics_SWT_dataset_baseline.csv'#'/scratch/nstevia/continual_rl/AspectJ_train.csv'
+            mpath ='/scratch/nstevia/bug_localization/micro_codebert'# '/scratch/f/foutsekh/nstevia/bug_localization/micro_codebert'#'/home/paulina/Downloads/micro_codebert'#'/scratch/f/foutsekh/nstevia/continual_rl/continual_rl/utils/micro_codebert'
+        elif env_spec[1] == '2':
+                project_name = 'JDT'
+                reg_path = '/scratch/nstevia/regression_model_develop/jdt/final_logistic_regression_model.pt'
+                # test_AspectJ_train_before_fix_aft4er_bug_report.csv' AspectJ_test_for_mining_before.csv
+                path1 = '/scratch/nstevia/bug_rep_paulina/train_all_non_baseline_with_metrics_JDT_dataset_baseline.csv'  # /scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv'
+                if env_spec[2] == '0':
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_with_metrics_JDT_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_test_for_mining_before.csv'#'/scratch/nstevia/continual_rl/AspectJ_test_withcommit.csv'#AspectJ_test_withcommit.csv'  test_AspectJ_train_before_fix_aft4er_bug_report.csv
+                else:
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_all_non_baseline_with_metrics_JDT_dataset_baseline.csv'
+                path2 = '/scratch/nstevia/bug_rep_paulina/train_with_metrics_JDT_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_train.csv'
+                mpath = '/scratch/nstevia/bug_localization/micro_codebert'  #
+        elif env_spec[1] == '3':
+                project_name = 'Birt'
+                reg_path = '/scratch/nstevia/regression_model_develop/birt/final_logistic_regression_model.pt'
+                # test_AspectJ_train_before_fix_aft4er_bug_report.csv' AspectJ_test_for_mining_before.csv
+                path1 = '/scratch/nstevia/bug_rep_paulina/train_all_non_baseline_with_metrics_Birt_dataset_baseline.csv'  # /scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv'
+                if env_spec[2] == '0':
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_with_metrics_Birt_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_test_for_mining_before.csv'#'/scratch/nstevia/continual_rl/AspectJ_test_withcommit.csv'#AspectJ_test_withcommit.csv'  test_AspectJ_train_before_fix_aft4er_bug_report.csv
+                else:
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_all_non_baseline_with_metrics_Birt_dataset_baseline.csv'
+                path2 = '/scratch/nstevia/bug_rep_paulina/train_with_metrics_Birt_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_train.csv'
+                mpath = '/scratch/nstevia/bug_localization/micro_codebert'  #
+        elif env_spec[1] == '4':
+                project_name = 'Eclipse_Platform_UI'
+                reg_path = '/scratch/nstevia/regression_model_develop/eclipse/final_logistic_regression_model.pt'
+                # test_AspectJ_train_before_fix_aft4er_bug_report.csv' AspectJ_test_for_mining_before.csv
+                path1 = '/scratch/nstevia/bug_rep_paulina/train_all_non_baseline_with_metrics_Eclipse_Platform_UI_dataset_baseline.csv'  # /scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv'
+                if env_spec[2] == '0':
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_with_metrics_Eclipse_Platform_UI_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_test_for_mining_before.csv'#'/scratch/nstevia/continual_rl/AspectJ_test_withcommit.csv'#AspectJ_test_withcommit.csv'  test_AspectJ_train_before_fix_aft4er_bug_report.csv
+                else:
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_all_non_baseline_with_metrics_Eclipse_Platform_UI_dataset_baseline.csv'
+                path2 = '/scratch/nstevia/bug_rep_paulina/train_with_metrics_Eclipse_Platform_UI_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_train.csv'
+                mpath = '/scratch/nstevia/bug_localization/micro_codebert'  #
+        elif env_spec[1] == '5':
+                project_name = 'Tomcat'
+                reg_path = '/scratch/nstevia/regression_model_develop/tomcat/final_logistic_regression_model.pt'
+                # test_AspectJ_train_before_fix_aft4er_bug_report.csv' AspectJ_test_for_mining_before.csv
+                path1 = '/scratch/nstevia/bug_rep_paulina/train_all_non_baseline_with_metrics_Tomcat_dataset_baseline.csv'  # /scratch/nstevia/continual_rl/train_AspectJ_train_before_fix_aft4er_bug_report.csv'
+                if env_spec[2] == '0':
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_with_metrics_Tomcat_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_bug_loc_experiments_with_metric/AspectJ_test_for_mining_before.csv'#'/scratch/nstevia/continual_rl/AspectJ_test_withcommit.csv'#AspectJ_test_withcommit.csv'  test_AspectJ_train_before_fix_aft4er_bug_report.csv
+                else:
+                    path_test = '/scratch/nstevia/bug_rep_paulina/test_all_non_baseline_with_metrics_Tomcat_dataset_baseline.csv'
+                path2 = '/scratch/nstevia/bug_rep_paulina/train_with_metrics_Tomcat_dataset_baseline.csv'  # '/scratch/nstevia/continual_rl/AspectJ_train.csv'
+                mpath = '/scratch/nstevia/bug_localization/micro_codebert'  #
+        #env_spec=env_spec[4:]
+        fi = open(env_spec+'.txt', 'a+')
+        fi.write(path_test+','+project_name + '\n')
+        fi.close()
         while env is None:
             try:
                 if isinstance(env_spec, types.LambdaType):
@@ -78,25 +145,31 @@ class Utils(object):
                 else:
                     if env_spec=='CartPole-v0':
                         env=CartPoleEnv()
+
                     elif env_spec=='NSCartPole-v0':
                         env=NSCartPoleV0()
+
                     elif env_spec=='NSCartPole-v1':
                         env=NSCartPoleV1()
                     elif env_spec=='NSCartPole-v2':
                         env=NSCartPoleV2()
-                    elif env_spec=="bug_log1":
-                        env=LTREnvV2(data_path=train_data_path, model_path=mpath,
+                    elif "bug_log1" in env_spec:#env_spec=="bug_log1":
+
+                        env=LTREnvV2(data_path=path1, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
-                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
-                        assert False
-                    elif env_spec=="bug_log3":
-                        env=LTREnvV2(data_path=train_data_path, model_path=mpath,
+                        use_gpu=True, caching=True, file_path=file_path, project_list=[project_name],model_flags=model_flags,non_original=non_original,reg_path=reg_path)
+                    elif "bug_log_test" in env_spec:
+
+                        env=LTREnvV2(data_path=path_test, model_path=mpath,
+                            tokenizer_path=mpath, action_space_dim=31, report_count=None, max_len=512,
+                        use_gpu=True, caching=True, file_path=file_path, project_list=[project_name,env_spec],test_env=True,model_flags=model_flags,non_original=non_original,reg_path=reg_path)
+                        #env=LTREnvV2(data_path=test_data_path, model_path=mpath,  # data_path=file_path + test_data_path
+                        #tokenizer_path=mpath, action_space_dim=31, report_count=None, max_len=512,
+                        #use_gpu=False, caching=True, file_path=file_path, project_list=[project_name], test_env=True, estimate=options.estimate)
+                    elif "bug_log2" in env_spec:
+                        env=LTREnvV2(data_path=path2, model_path=mpath,
                             tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
-                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
-                    elif env_spec=="bug_log2":
-                        env=LTREnvV2(data_path=train_data_path, model_path=mpath,
-                            tokenizer_path=mpath, action_space_dim=31, report_count=100, max_len=512,
-                        use_gpu=False, caching=True, file_path=file_path, project_list=[project_name])
+                        use_gpu=True, caching=True, file_path=file_path, project_list=[project_name],model_flags=model_flags,non_original=non_original,reg_path=reg_path)
                     else:
                         env = gym.make(env_spec)
             except Exception as e:
@@ -108,6 +181,7 @@ class Utils(object):
             assert not (create_seed and seed_to_set is not None), \
                 "If create_seed is True and a seed_to_set is specified, it is unclear which is desired."
             seed = cls.seed(env, seed=seed_to_set)
+        print(env_spec)
 
         return env, seed
 
